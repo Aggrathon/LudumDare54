@@ -4,19 +4,20 @@ use bevy::prelude::*;
 use bevy_easings::EasingsPlugin;
 
 use camera::CameraMovePlugin;
-use level::{LevelPlugin, LoadLevel};
+use load::{LoadLevel, LoadPlugin};
 
 mod camera;
 mod level;
+mod load;
 
 fn main() {
     App::new()
         .insert_resource(AmbientLight {
             color: Color::WHITE,
-            brightness: 1.0 / 8.0f32,
+            brightness: 1.0 / 4.0f32,
         })
         .add_state::<AppState>()
-        .add_plugins((DefaultPlugins, LevelPlugin, CameraMovePlugin, EasingsPlugin))
+        .add_plugins((DefaultPlugins, LoadPlugin, CameraMovePlugin, EasingsPlugin))
         .add_systems(Startup, setup)
         .add_systems(Update, animate_light_direction)
         .run();
