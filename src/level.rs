@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::reflect::{TypePath, TypeUuid};
 use bevy_common_assets::ron::RonAssetPlugin;
 
+use crate::camera::Unobstruct;
 use crate::AppState;
 
 pub struct LevelPlugin;
@@ -79,7 +80,7 @@ fn level_parse(layout: &[String]) -> Vec<Vec<Tile>> {
                     'L' => Tile::Loadingbay,
                     'I' => Tile::Input(0.0),
                     'O' => Tile::Output(0.0),
-                    '#' => Tile::Wall(1.0, 1.0, 1.0, 1.0),
+                    '#' => Tile::Wall(0.0, 0.0, 0.0, 0.0),
                     _ => panic!("Unknown tile: '{}'", c),
                 })
                 .collect()
@@ -105,32 +106,32 @@ fn level_surround(layout: &mut Vec<Vec<Tile>>) {
             match &layout[i][j] {
                 Tile::Wall(_, _, _, _) => {
                     let nw = if get(layout, i, -1, j, -1).obstructable() {
-                        0.0
+                        -2.0
                     } else if get(layout, i, -2, j, -2).obstructable() {
-                        0.5
+                        -1.0
                     } else {
-                        1.0
+                        0.0
                     };
                     let ne = if get(layout, i, -1, j, 1).obstructable() {
-                        0.0
+                        -2.0
                     } else if get(layout, i, -2, j, 2).obstructable() {
-                        0.5
-                    } else {
                         1.0
+                    } else {
+                        0.0
                     };
                     let se = if get(layout, i, 1, j, 1).obstructable() {
-                        0.0
+                        -2.0
                     } else if get(layout, i, 2, j, 2).obstructable() {
-                        0.5
-                    } else {
                         1.0
+                    } else {
+                        0.0
                     };
                     let sw = if get(layout, i, 1, j, -1).obstructable() {
-                        0.0
+                        -2.0
                     } else if get(layout, i, 2, j, -2).obstructable() {
-                        0.5
-                    } else {
                         1.0
+                    } else {
+                        0.0
                     };
                     if get(layout, i, 0, j, 1).is_loadingbay() {
                         layout[i][j] = Tile::Door(PI * 0.5, nw, ne, se, sw);
@@ -185,12 +186,15 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
             let y = offset_y + j as f32;
             match tile {
                 Tile::Empty => {}
-                Tile::Wall(_, _, _, _) => {
-                    cmds.spawn(SceneBundle {
-                        scene: wall.clone(),
-                        transform: Transform::from_xyz(x, 0.0, y),
-                        ..Default::default()
-                    });
+                Tile::Wall(nw, ne, se, sw) => {
+                    cmds.spawn((
+                        SceneBundle {
+                            scene: wall.clone(),
+                            transform: Transform::from_xyz(x, 0.0, y),
+                            ..Default::default()
+                        },
+                        Unobstruct { nw, ne, se, sw },
+                    ));
                 }
                 Tile::Floor => {
                     cmds.spawn(SceneBundle {
@@ -222,13 +226,16 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                         ..Default::default()
                     });
                 }
-                Tile::Door(rot, _, _, _, _) => {
-                    cmds.spawn(SceneBundle {
-                        scene: door.clone(),
-                        transform: Transform::from_xyz(x, 0.0, y)
-                            .with_rotation(Quat::from_rotation_y(rot)),
-                        ..Default::default()
-                    });
+                Tile::Door(rot, nw, ne, se, sw) => {
+                    cmds.spawn((
+                        SceneBundle {
+                            scene: door.clone(),
+                            transform: Transform::from_xyz(x, 0.0, y)
+                                .with_rotation(Quat::from_rotation_y(rot)),
+                            ..Default::default()
+                        },
+                        Unobstruct { nw, ne, se, sw },
+                    ));
                 }
             };
         }
