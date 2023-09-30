@@ -6,7 +6,7 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use serde::Deserialize;
 
 use crate::camera::Unobstruct;
-use crate::level::{Level, MakeSceneDraggable};
+use crate::level::{Block, Level, MakeSceneDraggable};
 use crate::AppState;
 
 pub struct LoadPlugin;
@@ -28,7 +28,7 @@ pub struct LevelFile {
     pub objects: Vec<Object>,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Debug)]
 pub enum Tile {
     #[default]
     Empty,
@@ -40,11 +40,13 @@ pub enum Tile {
     Door(f32, f32, f32, f32, f32),
 }
 
-#[derive(Deserialize, Default, Clone, Copy)]
+#[derive(Deserialize, Default, Clone, Copy, Debug)]
 pub enum Object {
     #[default]
     Empty,
     Belt,
+    Belt2,
+    Belt3,
 }
 
 impl Tile {
@@ -223,22 +225,7 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                         transform: Transform::from_xyz(x, 0.0, y),
                         ..Default::default()
                     });
-                    match object {
-                        Object::Empty => *level.get_mut(i, j).unwrap() = 0,
-                        Object::Belt => {
-                            let index = level.next_index();
-                            *level.get_mut(i, j).unwrap() = index;
-                            // TODO add index to object
-                            cmds.spawn((
-                                SceneBundle {
-                                    scene: asset_server.load("models/belt.glb#Scene0"),
-                                    transform: Transform::from_xyz(x, 0.0, y),
-                                    ..Default::default()
-                                },
-                                MakeSceneDraggable,
-                            ));
-                        }
-                    }
+                    spawn_object(object, i, j, x, y, &mut level, &mut cmds, &asset_server);
                 }
                 Tile::Loadingbay => {
                     *level.get_mut(i, j).unwrap() = 0;
@@ -280,4 +267,101 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
     }
 
     cmds.insert_resource(level);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_object(
+    object: Object,
+    i: usize,
+    j: usize,
+    x: f32,
+    y: f32,
+    level: &mut Level,
+    cmds: &mut Commands,
+    asset_server: &Res<AssetServer>,
+) {
+    match object {
+        Object::Empty => *level.get_mut(i, j).unwrap() = 0,
+        Object::Belt => {
+            let block = Block::new(level.next_index(), i, j);
+            level.place(&block);
+            cmds.spawn((
+                SceneBundle {
+                    scene: asset_server.load("models/belt.glb#Scene0"),
+                    transform: Transform::from_xyz(x, 0.0, y),
+                    ..Default::default()
+                },
+                MakeSceneDraggable(None),
+                block,
+            ));
+        }
+        Object::Belt2 => {
+            dbg!(&object);
+            let block = Block::new(level.next_index(), i, j).north();
+            level.place(&block);
+            cmds.spawn((
+                VisibilityBundle::default(),
+                TransformBundle::from_transform(Transform::from_xyz(x, 0.0, y)),
+                MakeSceneDraggable(None),
+                block,
+            ))
+            .with_children(|p| {
+                dbg!(&object);
+                let scene = asset_server.load("models/belt.glb#Scene0");
+                p.spawn((
+                    MakeSceneDraggable(Some(p.parent_entity())),
+                    SceneBundle {
+                        scene: scene.clone(),
+                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                        ..Default::default()
+                    },
+                ));
+                p.spawn((
+                    MakeSceneDraggable(Some(p.parent_entity())),
+                    SceneBundle {
+                        scene,
+                        transform: Transform::from_xyz(0.0, 0.0, 1.0),
+                        ..Default::default()
+                    },
+                ));
+            });
+        }
+        Object::Belt3 => {
+            let block = Block::new(level.next_index(), i, j).north().north();
+            level.place(&block);
+            cmds.spawn((
+                VisibilityBundle::default(),
+                TransformBundle::from_transform(Transform::from_xyz(x, 0.0, y)),
+                MakeSceneDraggable(None),
+                block,
+            ))
+            .with_children(|p| {
+                let scene = asset_server.load("models/belt.glb#Scene0");
+                p.spawn((
+                    MakeSceneDraggable(Some(p.parent_entity())),
+                    SceneBundle {
+                        scene: scene.clone(),
+                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                        ..Default::default()
+                    },
+                ));
+                p.spawn((
+                    MakeSceneDraggable(Some(p.parent_entity())),
+                    SceneBundle {
+                        scene: scene.clone(),
+                        transform: Transform::from_xyz(0.0, 0.0, 1.0),
+                        ..Default::default()
+                    },
+                ));
+                p.spawn((
+                    MakeSceneDraggable(Some(p.parent_entity())),
+                    SceneBundle {
+                        scene,
+                        transform: Transform::from_xyz(0.0, 0.0, 2.0),
+                        ..Default::default()
+                    },
+                ));
+            });
+        }
+    }
 }

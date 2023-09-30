@@ -13,6 +13,6 @@
         "##O###I##",
     ],
     objects: [
-        Belt,
+        Belt2,
     ]
 )
