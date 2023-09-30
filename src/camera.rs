@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_easings::*;
+use bevy_mod_picking::prelude::*;
 
 pub struct CameraMovePlugin;
 
@@ -39,11 +40,14 @@ fn setup(mut commands: Commands) {
         .with_children(|p| {
             p.spawn((CameraArm, TransformBundle { ..default() }))
                 .with_children(|p| {
-                    p.spawn(Camera3dBundle {
-                        transform: Transform::from_xyz(10.0, 10.0, 0.0)
-                            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-                        ..default()
-                    });
+                    p.spawn((
+                        Camera3dBundle {
+                            transform: Transform::from_xyz(10.0, 12.0, 0.0)
+                                .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+                            ..default()
+                        },
+                        RaycastPickCamera::default(),
+                    ));
                 });
         });
 }

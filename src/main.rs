@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy_easings::EasingsPlugin;
 
 use camera::CameraMovePlugin;
+use level::LevelPlugin;
 use load::{LoadLevel, LoadPlugin};
 
 mod camera;
@@ -17,9 +18,16 @@ fn main() {
             brightness: 1.0 / 4.0f32,
         })
         .add_state::<AppState>()
-        .add_plugins((DefaultPlugins, LoadPlugin, CameraMovePlugin, EasingsPlugin))
+        .add_plugins((
+            DefaultPlugins,
+            LoadPlugin,
+            CameraMovePlugin,
+            EasingsPlugin,
+            LevelPlugin,
+        ))
         .add_systems(Startup, setup)
         .add_systems(Update, animate_light_direction)
+        // .add_systems(Update, make_pickable)
         .run();
 }
 

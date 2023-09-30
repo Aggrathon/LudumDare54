@@ -6,7 +6,7 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use serde::Deserialize;
 
 use crate::camera::Unobstruct;
-use crate::level::Level;
+use crate::level::{Level, MakeSceneDraggable};
 use crate::AppState;
 
 pub struct LoadPlugin;
@@ -21,7 +21,7 @@ impl Plugin for LoadPlugin {
 #[derive(Resource)]
 pub struct LoadLevel(pub Handle<LevelFile>);
 
-#[derive(serde::Deserialize, TypeUuid, TypePath)]
+#[derive(Deserialize, TypeUuid, TypePath)]
 #[uuid = "413be529-bfeb-41b3-9db0-4b8b380a2c46"]
 pub struct LevelFile {
     pub layout: Vec<String>,
@@ -229,11 +229,14 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                             let index = level.next_index();
                             *level.get_mut(i, j).unwrap() = index;
                             // TODO add index to object
-                            cmds.spawn(SceneBundle {
-                                scene: asset_server.load("models/belt.glb#Scene0"),
-                                transform: Transform::from_xyz(x, 0.0, y),
-                                ..Default::default()
-                            });
+                            cmds.spawn((
+                                SceneBundle {
+                                    scene: asset_server.load("models/belt.glb#Scene0"),
+                                    transform: Transform::from_xyz(x, 0.0, y),
+                                    ..Default::default()
+                                },
+                                MakeSceneDraggable,
+                            ));
                         }
                     }
                 }
@@ -275,4 +278,6 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
             };
         }
     }
+
+    cmds.insert_resource(level);
 }
