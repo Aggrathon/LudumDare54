@@ -62,15 +62,15 @@ fn spawn_sun(mut commands: Commands) {
 fn unload_level(
     query: Query<Entity, (Without<Parent>, With<LevelEntity>)>,
     mut cmds: Commands,
-    mut state: ResMut<NextState<AppState>>,
-    mut level: ResMut<NextState<LevelState>>,
+    level: Res<State<LevelState>>,
+    mut next_level: ResMut<NextState<LevelState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     for entity in query.iter() {
         cmds.entity(entity).despawn_recursive();
     }
-    state.set(AppState::Loading);
-    let next_level = level.0.unwrap().next();
-    level.set(next_level);
+    next_level.set(level.next());
+    next_state.set(AppState::Loading);
 }
 
 fn load_level(
@@ -81,8 +81,9 @@ fn load_level(
     commands.insert_resource(LoadLevel(asset_server.load(level.get_path())));
 }
 
-fn skip_level(keys: Res<Input<KeyCode>>, mut state: ResMut<NextState<AppState>>) {
+fn skip_level(mut keys: ResMut<Input<KeyCode>>, mut state: ResMut<NextState<AppState>>) {
     if keys.just_pressed(KeyCode::K) {
+        keys.reset(KeyCode::K);
         state.set(AppState::Unloading);
     }
 }

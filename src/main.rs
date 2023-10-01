@@ -7,6 +7,7 @@ use cubes::CubePlugin;
 use game::GamePlugin;
 use levels::LevelManagerPlugin;
 use load::LoadPlugin;
+use ui::UIPlugin;
 
 mod camera;
 mod cubes;
@@ -14,6 +15,7 @@ mod game;
 mod levels;
 mod load;
 mod objects;
+mod ui;
 
 fn main() {
     App::new()
@@ -31,6 +33,7 @@ fn main() {
             GamePlugin,
             CubePlugin,
             LevelManagerPlugin,
+            UIPlugin,
         ))
         .run();
 }
