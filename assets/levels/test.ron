@@ -5,7 +5,7 @@
         "I       O",
         "#   1   #",
         "#LL     #",
-        "#LL    L#",
+        "#LL 2  L#",
         "#LL     #",
         "#   0   #",
         "O       I",
@@ -13,7 +13,8 @@
         "##O###I##",
     ],
     objects: [
-        Belt2,
-        BeltL
+        Belt("ff"),
+        Belt("lf"),
+        Belt("r"),
     ]
 )

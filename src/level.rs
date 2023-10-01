@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use std::ops::{Add, AddAssign};
 
 use bevy::math::vec4;
 use bevy::prelude::*;
@@ -21,6 +22,64 @@ impl Plugin for LevelPlugin {
 // ) {
 // }
 
+#[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone, Copy, Default)]
+pub struct Dis2 {
+    x: isize,
+    z: isize,
+}
+
+impl Dis2 {
+    pub const fn new(x: isize, z: isize) -> Self {
+        Self { x, z }
+    }
+
+    #[allow(dead_code)]
+    pub const ZERO: Dis2 = Dis2::new(0, 0);
+    #[allow(dead_code)]
+    pub const X: Dis2 = Dis2::new(1, 0);
+    #[allow(dead_code)]
+    pub const NEG_X: Dis2 = Dis2::new(-1, 0);
+    #[allow(dead_code)]
+    pub const Z: Dis2 = Dis2::new(0, 1);
+    #[allow(dead_code)]
+    pub const NEG_Z: Dis2 = Dis2::new(0, -1);
+
+    pub fn rotated(&self, rotation: Rotation) -> Self {
+        match rotation {
+            Rotation::D0 => Self::new(self.x, self.z),
+            Rotation::D90 => Self::new(-self.z, self.x),
+            Rotation::D180 => Self::new(-self.x, -self.z),
+            Rotation::D270 => Self::new(self.z, -self.x),
+        }
+    }
+}
+
+impl From<(isize, isize)> for Dis2 {
+    fn from(value: (isize, isize)) -> Self {
+        Self::new(value.0, value.1)
+    }
+}
+impl From<(usize, usize)> for Dis2 {
+    fn from(value: (usize, usize)) -> Self {
+        Self::new(value.0 as isize, value.1 as isize)
+    }
+}
+
+impl AddAssign for Dis2 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.z += rhs.z;
+    }
+}
+
+impl Add for Dis2 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.x + rhs.x, self.z + rhs.z)
+    }
+}
+
 #[derive(Resource)]
 pub struct Level {
     width: usize,
@@ -40,24 +99,43 @@ impl Level {
     }
 
     #[allow(dead_code)]
-    pub fn get(&self, x: usize, y: usize) -> Option<&usize> {
+    pub fn get(&self, x: usize, z: usize) -> Option<&usize> {
         if x >= self.width {
             None
         } else {
-            self.floor.get(y * self.width + x)
+            self.floor.get(z * self.width + x)
         }
     }
 
-    pub fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut usize> {
+    pub fn getd(&self, dis: Dis2) -> Option<&usize> {
+        let w = self.width as isize;
+        let h = self.height as isize;
+        if dis.x >= w || dis.x < 0 || dis.z > h || dis.z < 0 {
+            None
+        } else {
+            self.floor.get((dis.z * w + dis.x) as usize)
+        }
+    }
+    fn getd_mut(&mut self, dis: Dis2) -> Option<&mut usize> {
+        let w = self.width as isize;
+        let h = self.height as isize;
+        if dis.x >= w || dis.x < 0 || dis.z > h || dis.z < 0 {
+            None
+        } else {
+            self.floor.get_mut((dis.z * w + dis.x) as usize)
+        }
+    }
+
+    fn get_mut(&mut self, x: usize, z: usize) -> Option<&mut usize> {
         if x >= self.width {
             None
         } else {
-            self.floor.get_mut(y * self.width + x)
+            self.floor.get_mut(z * self.width + x)
         }
     }
 
-    pub fn offset(&self) -> (f32, f32) {
-        (-(self.width as f32 * 0.5), -(self.height as f32 * 0.5))
+    pub fn offset(&self) -> Vec3 {
+        Vec3::new(-(self.width as f32 * 0.5), 0.0, -(self.height as f32 * 0.5))
     }
 
     pub fn next_index(&mut self) -> usize {
@@ -65,76 +143,149 @@ impl Level {
         self.index
     }
 
-    pub fn try_place(&self, block: &Block, x: usize, y: usize, dir: Direction) -> bool {
-        for (x, y) in block.iter_with(x as isize, y as isize, dir) {
-            if x < 0 || y < 0 {
-                return false;
-            }
-            match self.get(x as usize, y as usize) {
-                Some(index) => {
-                    if *index != 0 && *index != block.index {
-                        return false;
-                    }
-                }
-                None => return false,
+    pub fn try_place(&self, block: &Block, dis: Dis2, dir: Rotation) -> bool {
+        for pos in block.iter_with(dis, dir) {
+            match self.getd(pos) {
+                Some(0) => {}
+                Some(i) if *i == block.index => {}
+                _ => return false,
             }
         }
         true
     }
 
     pub fn remove(&mut self, block: &Block) {
-        for (x, y) in block.iter() {
-            *self.get_mut(x as usize, y as usize).unwrap() = 0;
-        }
+        block.iter().for_each(|d| {
+            let tile = self.getd_mut(d).unwrap();
+            debug_assert_eq!(*tile, block.index);
+            *tile = 0;
+        });
     }
 
     pub fn place(&mut self, block: &Block) {
-        for (x, y) in block.iter() {
-            *self.get_mut(x as usize, y as usize).unwrap() = block.index;
+        block.iter().for_each(|d| {
+            let tile = self.getd_mut(d).unwrap();
+            debug_assert_eq!(*tile, 0);
+            *tile = block.index;
+        });
+    }
+
+    pub fn place_unchecked(&mut self, block: &Block) {
+        block
+            .iter()
+            .for_each(|d| *self.getd_mut(d).unwrap() = block.index);
+    }
+
+    pub fn set_floor(&mut self, x: usize, z: usize) {
+        let tile = self.get_mut(x, z).unwrap();
+        if *tile == usize::MAX {
+            *tile = 0;
         }
     }
 
-    pub fn to_discrete(&self, pos: Vec3) -> (usize, usize) {
-        let (mut x, mut y) = self.offset();
-        x = pos.x - x;
-        y = pos.z - y;
-        (x.round() as usize, y.round() as usize)
+    pub fn to_discrete(&self, pos: Vec3) -> Dis2 {
+        let pos = pos - self.offset();
+        Dis2::new(pos.x.round() as isize, pos.z.round() as isize)
+    }
+
+    pub fn to_vec3(&self, pos: Dis2) -> Vec3 {
+        self.offset() + Vec3::new(pos.x as f32, 0.0, pos.z as f32)
     }
 }
 
-#[derive(Clone, Copy)]
-pub enum Direction {
-    North,
-    West,
-    South,
-    East,
+impl std::fmt::Debug for Level {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let floor = (0..self.height)
+            .map(|j| {
+                self.floor[(j * self.width)..((j + 1) * self.width)]
+                    .iter()
+                    .map(|t| {
+                        let mut s = String::new();
+                        if *t == 0 {
+                            s += " ";
+                        } else if *t == usize::MAX {
+                            s += "#";
+                        } else {
+                            s += &t.to_string();
+                        }
+                        s
+                    })
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>();
+        f.debug_struct("Level")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("index", &self.index)
+            .field("floor", &floor)
+            .finish()
+    }
 }
 
-impl Direction {
-    pub fn rotate(self) -> Self {
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Rotation {
+    D0,
+    D90,
+    D180,
+    D270,
+}
+
+impl Rotation {
+    pub fn right(self) -> Self {
         match self {
-            Direction::North => Direction::West,
-            Direction::West => Direction::South,
-            Direction::South => Direction::East,
-            Direction::East => Direction::North,
+            Rotation::D0 => Rotation::D270,
+            Rotation::D90 => Rotation::D0,
+            Rotation::D180 => Rotation::D90,
+            Rotation::D270 => Rotation::D180,
         }
     }
 
-    pub fn rotate_by(self, other: Direction) -> Self {
-        match other {
-            Direction::North => self,
-            Direction::West => self.rotate(),
-            Direction::South => self.rotate().rotate(),
-            Direction::East => self.rotate().rotate().rotate(),
+    pub fn left(self) -> Self {
+        match self {
+            Rotation::D0 => Rotation::D90,
+            Rotation::D90 => Rotation::D180,
+            Rotation::D180 => Rotation::D270,
+            Rotation::D270 => Rotation::D0,
         }
     }
 
     pub fn as_radians(&self) -> f32 {
         match self {
-            Direction::North => 0.0,
-            Direction::West => -PI * 0.5,
-            Direction::South => PI,
-            Direction::East => PI * 0.5,
+            Rotation::D0 => 0.0,
+            Rotation::D90 => -PI * 0.5,
+            Rotation::D180 => PI,
+            Rotation::D270 => PI * 0.5,
+        }
+    }
+
+    pub fn as_vec3(&self) -> Vec3 {
+        match self {
+            Rotation::D0 => Vec3::NEG_Z,
+            Rotation::D90 => Vec3::NEG_X,
+            Rotation::D180 => Vec3::Z,
+            Rotation::D270 => Vec3::X,
+        }
+    }
+
+    pub fn as_discrete(&self) -> Dis2 {
+        match self {
+            Rotation::D0 => Dis2::NEG_Z,
+            Rotation::D90 => Dis2::NEG_X,
+            Rotation::D180 => Dis2::Z,
+            Rotation::D270 => Dis2::X,
+        }
+    }
+}
+
+impl Add for Rotation {
+    type Output = Rotation;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match rhs {
+            Rotation::D0 => self,
+            Rotation::D90 => self.left(),
+            Rotation::D180 => self.left().left(),
+            Rotation::D270 => self.right(),
         }
     }
 }
@@ -142,80 +293,57 @@ impl Direction {
 #[derive(Component)]
 pub struct Block {
     pub index: usize,
-    path: Vec<Direction>,
-    rotation: Direction,
-    x: usize,
-    y: usize,
+    pub tiles: Vec<Dis2>,
+    rotation: Rotation,
+    position: Dis2,
 }
 
 impl Block {
-    pub fn new(index: usize, x: usize, y: usize) -> Self {
+    pub fn new(index: usize, position: Dis2) -> Self {
         Self {
             index,
-            path: Vec::new(),
-            rotation: Direction::North,
-            x,
-            y,
+            tiles: vec![Dis2::ZERO],
+            rotation: Rotation::D0,
+            position,
         }
     }
 
-    pub fn north(mut self) -> Self {
-        self.path.push(Direction::North);
+    #[allow(dead_code)]
+    pub fn with_tile(mut self, pos: Dis2) -> Self {
+        self.tiles.push(pos);
         self
     }
 
-    pub fn west(mut self) -> Self {
-        self.path.push(Direction::West);
+    #[allow(unused)]
+    pub fn left(mut self) -> Self {
+        self.rotation = self.rotation.left();
         self
     }
 
-    pub fn south(mut self) -> Self {
-        self.path.push(Direction::South);
+    #[allow(unused)]
+    pub fn right(mut self) -> Self {
+        self.rotation = self.rotation.right();
         self
     }
 
-    pub fn east(mut self) -> Self {
-        self.path.push(Direction::East);
+    pub fn translate(&mut self, position: Dis2) -> &mut Self {
+        self.position = position;
         self
     }
 
-    pub fn rotate_next(mut self) -> Self {
-        self.rotation = self.rotation.rotate();
-        self
-    }
-
-    pub fn translate(&mut self, x: usize, y: usize) -> &mut Self {
-        self.x = x;
-        self.y = y;
-        self
-    }
-
-    pub fn rotate(&mut self, rotation: Direction) -> &mut Self {
+    pub fn rotate(&mut self, rotation: Rotation) -> &mut Self {
         self.rotation = rotation;
         self
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (isize, isize)> + '_ {
-        self.iter_with(self.x as isize, self.y as isize, self.rotation)
+    pub fn iter(&self) -> impl Iterator<Item = Dis2> + '_ {
+        self.iter_with(self.position, self.rotation)
     }
 
-    pub fn iter_with(
-        &self,
-        x: isize,
-        y: isize,
-        rotation: Direction,
-    ) -> impl Iterator<Item = (isize, isize)> + '_ {
-        let mut x = x;
-        let mut y = y;
-        [(x, y)].into_iter().chain(self.path.iter().map(move |dir| {
-            match dir.rotate_by(rotation) {
-                Direction::North => y += 1,
-                Direction::West => x -= 1,
-                Direction::South => y -= 1,
-                Direction::East => x += 1,
-            };
-            (x, y)
-        }))
+    pub fn iter_with(&self, dis: Dis2, rotation: Rotation) -> impl Iterator<Item = Dis2> + '_ {
+        self.tiles
+            .iter()
+            .map(move |dir| dis + dir.rotated(rotation))
     }
 }
 
@@ -242,18 +370,13 @@ fn on_drag(
                 camera.viewport_to_world(camera_transform, event.pointer_location.position)
             {
                 if let Some(dist) = ray.intersect_plane(transform.translation, Vec3::Y) {
-                    let mut pos = ray.get_point(dist);
-                    let (x, y) = level.offset();
-                    pos.x = (pos.x - x).round() + x;
-                    pos.z = (pos.z - y).round() + y;
-                    let (x, y) = level.to_discrete(pos);
-                    if (x != block.x || y != block.y)
-                        && level.try_place(&block, x, y, block.rotation)
-                    {
+                    let pos = ray.get_point(dist);
+                    let dis = level.to_discrete(pos);
+                    if (dis != block.position) && level.try_place(&block, dis, block.rotation) {
                         level.remove(&block);
-                        block.translate(x, y);
+                        block.translate(dis);
                         level.place(&block);
-                        transform.translation = pos;
+                        transform.translation = level.to_vec3(dis);
                         // TODO place sound
                     }
                 }
@@ -275,8 +398,8 @@ fn on_click(
         if let Ok((mut transform, mut block)) = block_query.get_mut(root.0) {
             let mut dir = block.rotation;
             for _ in 0..3 {
-                dir = dir.rotate();
-                if level.try_place(&block, block.x, block.y, dir) {
+                dir = dir.left();
+                if level.try_place(&block, block.position, dir) {
                     level.remove(&block);
                     block.rotate(dir);
                     level.place(&block);
@@ -318,7 +441,7 @@ fn make_scene_draggable(
 
 const HIGHLIGHT_TINT: Highlight<StandardMaterial> = Highlight {
     hovered: Some(HighlightKind::new_dynamic(|matl| StandardMaterial {
-        base_color: matl.base_color + vec4(0.1, 0.1, 0.4, 0.0),
+        base_color: matl.base_color + vec4(-0.1, 0.1, 0.4, 0.0),
         ..matl.to_owned()
     })),
     pressed: Some(HighlightKind::new_dynamic(|matl| StandardMaterial {
@@ -355,10 +478,60 @@ mod tests {
 
     #[test]
     fn test_block() {
-        let obj = Block::new(1, 0, 0).north().north().north().rotate_next();
+        let mut obj = Block::new(1, Dis2::ZERO)
+            .with_tile(Dis2::new(1, 0))
+            .with_tile(Dis2::new(2, 0))
+            .with_tile(Dis2::new(2, 1))
+            .left();
         assert_eq!(
-            vec![(0, 0), (-1, 0), (-2, 0), (-3, 0)],
-            obj.iter().collect::<Vec<_>>()
+            vec![
+                Dis2::new(0, 0),
+                Dis2::new(0, 1),
+                Dis2::new(0, 2),
+                Dis2::new(-1, 2)
+            ],
+            obj.iter().collect::<Vec<Dis2>>()
+        );
+        assert_eq!(obj.rotation, super::Rotation::D90);
+        obj.translate(Dis2::X);
+        assert_eq!(
+            vec![
+                Dis2::new(1, 0),
+                Dis2::new(1, 1),
+                Dis2::new(1, 2),
+                Dis2::new(0, 2)
+            ],
+            obj.iter().collect::<Vec<Dis2>>()
+        );
+    }
+
+    #[test]
+    fn test_rot() {
+        let f = Dis2::NEG_Z;
+        assert_eq!(f.rotated(Rotation::D0), Rotation::D0.as_discrete());
+        assert_eq!(f.rotated(Rotation::D90), Rotation::D90.as_discrete());
+        assert_eq!(f.rotated(Rotation::D180), Rotation::D180.as_discrete());
+        assert_eq!(f.rotated(Rotation::D270), Rotation::D270.as_discrete());
+        let f = Vec3::NEG_Z;
+        assert!(
+            (Quat::from_rotation_y(Rotation::D0.as_radians()) * f - Rotation::D0.as_vec3())
+                .length_squared()
+                < 0.1
+        );
+        assert!(
+            (Quat::from_rotation_y(Rotation::D90.as_radians()) * f - Rotation::D90.as_vec3())
+                .length_squared()
+                < 0.1
+        );
+        assert!(
+            (Quat::from_rotation_y(Rotation::D180.as_radians()) * f - Rotation::D180.as_vec3())
+                .length_squared()
+                < 0.1
+        );
+        assert!(
+            (Quat::from_rotation_y(Rotation::D270.as_radians()) * f - Rotation::D270.as_vec3())
+                .length_squared()
+                < 0.1
         );
     }
 
@@ -367,8 +540,25 @@ mod tests {
         let level = Level::new(4, 6);
         assert_eq!(level.get(5, 1), None);
         assert_eq!(level.get(1, 7), None);
-        let (x, y) = level.offset();
-        assert_eq!(level.to_discrete(Vec3::new(x + 2.0, 0.0, y + 2.0)), (2, 2));
-        assert_eq!(level.to_discrete(Vec3::new(x + 3.0, 0.0, y + 5.0)), (3, 5));
+        assert_eq!(
+            level.to_discrete(level.offset() + Vec3::new(2.0, 0.0, 1.0)),
+            Dis2::new(2, 1)
+        );
+        assert_eq!(
+            level.to_discrete(level.offset() + Vec3::new(3.0, 0.0, 5.0)),
+            Dis2::new(3, 5)
+        );
+        assert!(
+            level
+                .to_vec3(Dis2::new(3, 5))
+                .distance_squared(level.offset() + Vec3::new(3.0, 0.0, 5.0))
+                < 0.1
+        );
+        assert!(
+            level
+                .to_vec3(Dis2::new(2, 1))
+                .distance_squared(level.offset() + Vec3::new(2.0, 0.0, 1.0))
+                < 0.1
+        );
     }
 }

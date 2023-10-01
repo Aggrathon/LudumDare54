@@ -7,7 +7,8 @@ use serde::Deserialize;
 
 use crate::camera::Unobstruct;
 use crate::cubes::{CubeProcessor, CubeRouter, CubeSpawner};
-use crate::level::{Block, Level, MakeSceneDraggable};
+use crate::level::Level;
+use crate::objects::BeltBuilder;
 use crate::AppState;
 
 pub struct LoadPlugin;
@@ -29,7 +30,7 @@ pub struct LevelFile {
     pub objects: Vec<Object>,
 }
 
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Debug)]
 pub enum Tile {
     #[default]
     Empty,
@@ -41,15 +42,11 @@ pub enum Tile {
     Door(f32, f32, f32, f32, f32),
 }
 
-#[derive(Deserialize, Default, Clone, Copy, Debug)]
+#[derive(Deserialize, Default, Clone, Debug)]
 pub enum Object {
     #[default]
     Empty,
-    Belt,
-    Belt2,
-    Belt3,
-    BeltR,
-    BeltL,
+    Belt(String),
 }
 
 impl Tile {
@@ -103,16 +100,16 @@ fn level_parse(level: &LevelFile) -> Vec<Vec<Tile>> {
                     'n' => Tile::Input(0.0, 3),
                     'u' => Tile::Output(0.0, 3),
                     '#' => Tile::Wall(0.0, 0.0, 0.0, 0.0),
-                    '0' => Tile::Floor(level.objects[0]),
-                    '1' => Tile::Floor(level.objects[1]),
-                    '2' => Tile::Floor(level.objects[2]),
-                    '3' => Tile::Floor(level.objects[3]),
-                    '4' => Tile::Floor(level.objects[4]),
-                    '5' => Tile::Floor(level.objects[5]),
-                    '6' => Tile::Floor(level.objects[6]),
-                    '7' => Tile::Floor(level.objects[7]),
-                    '8' => Tile::Floor(level.objects[8]),
-                    '9' => Tile::Floor(level.objects[9]),
+                    '0' => Tile::Floor(level.objects[0].clone()),
+                    '1' => Tile::Floor(level.objects[1].clone()),
+                    '2' => Tile::Floor(level.objects[2].clone()),
+                    '3' => Tile::Floor(level.objects[3].clone()),
+                    '4' => Tile::Floor(level.objects[4].clone()),
+                    '5' => Tile::Floor(level.objects[5].clone()),
+                    '6' => Tile::Floor(level.objects[6].clone()),
+                    '7' => Tile::Floor(level.objects[7].clone()),
+                    '8' => Tile::Floor(level.objects[8].clone()),
+                    '9' => Tile::Floor(level.objects[9].clone()),
                     _ => panic!("Unknown tile: '{}'", c),
                 })
                 .collect()
@@ -121,78 +118,78 @@ fn level_parse(level: &LevelFile) -> Vec<Vec<Tile>> {
 }
 
 fn level_surround(layout: &mut Vec<Vec<Tile>>) {
-    let get = |layout: &Vec<Vec<Tile>>, i: usize, di: isize, j: usize, dj: isize| {
-        let i = di + i as isize;
-        let j = dj + j as isize;
+    let get = |layout: &Vec<Vec<Tile>>, i: isize, j: isize| {
         if i < 0 || j < 0 {
             return Tile::Empty;
         }
         layout
-            .get(i as usize)
+            .get(j as usize)
             .map_or(Tile::Empty, |row: &Vec<Tile>| {
-                row.get(j as usize).cloned().unwrap_or_default()
+                row.get(i as usize).cloned().unwrap_or_default()
             })
     };
-    for i in 0..layout.len() {
-        for j in 0..layout[i].len() {
-            match &layout[i][j] {
+    for j in 0..layout.len() {
+        for i in 0..layout[j].len() {
+            let ii = i as isize;
+            let ji = j as isize;
+            match &layout[j][i] {
                 Tile::Wall(_, _, _, _) => {
-                    let nw = if get(layout, i, -1, j, -1).obstructable() {
+                    let nw = if get(layout, ii - 1, ji - 1).obstructable() {
                         -2.0
-                    } else if get(layout, i, -2, j, -2).obstructable() {
+                    } else if get(layout, ii - 2, ji - 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    let ne = if get(layout, i, -1, j, 1).obstructable() {
+                    let ne = if get(layout, ii - 1, ji + 1).obstructable() {
                         -2.0
-                    } else if get(layout, i, -2, j, 2).obstructable() {
+                    } else if get(layout, ii - 2, ji + 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    let se = if get(layout, i, 1, j, 1).obstructable() {
+                    let se = if get(layout, ii + 1, ji + 1).obstructable() {
                         -2.0
-                    } else if get(layout, i, 2, j, 2).obstructable() {
+                    } else if get(layout, ii + 2, ji + 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    let sw = if get(layout, i, 1, j, -1).obstructable() {
+                    let sw = if get(layout, ii + 1, ji - 1).obstructable() {
                         -2.0
-                    } else if get(layout, i, 2, j, -2).obstructable() {
+                    } else if get(layout, ii + 2, ji - 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    if get(layout, i, 0, j, 1).is_loadingbay() {
-                        layout[i][j] = Tile::Door(PI * 0.5, nw, ne, se, sw);
-                    } else if get(layout, i, 1, j, 0).is_loadingbay() {
-                        layout[i][j] = Tile::Door(0.0, nw, ne, se, sw);
-                    } else if get(layout, i, 0, j, -1).is_loadingbay() {
-                        layout[i][j] = Tile::Door(-PI * 0.5, nw, ne, se, sw);
-                    } else if get(layout, i, -1, j, 0).is_loadingbay() {
-                        layout[i][j] = Tile::Door(PI, nw, ne, se, sw);
+                    if get(layout, ii, ji + 1).is_loadingbay() {
+                        layout[j][i] = Tile::Door(PI * 0.5, nw, ne, se, sw);
+                    } else if get(layout, ii + 1, ji).is_loadingbay() {
+                        layout[j][i] = Tile::Door(0.0, nw, ne, se, sw);
+                    } else if get(layout, ii, ji - 1).is_loadingbay() {
+                        layout[j][i] = Tile::Door(-PI * 0.5, nw, ne, se, sw);
+                    } else if get(layout, ii - 1, ji).is_loadingbay() {
+                        layout[j][i] = Tile::Door(PI, nw, ne, se, sw);
                     } else {
-                        layout[i][j] = Tile::Wall(nw, ne, se, sw);
+                        layout[j][i] = Tile::Wall(nw, ne, se, sw);
                     }
                 }
                 Tile::Input(_, t) => {
-                    if get(layout, i, 0, j, 1).is_floor() {
-                        layout[i][j] = Tile::Input(-PI * 0.5, *t)
-                    } else if get(layout, i, -1, j, 0).is_floor() {
-                        layout[i][j] = Tile::Input(PI, *t)
-                    } else if get(layout, i, 0, j, -1).is_floor() {
-                        layout[i][j] = Tile::Input(PI * 0.5, *t)
+                    if get(layout, ii, ji + 1).is_floor() {
+                        layout[j][i] = Tile::Input(-PI * 0.5, *t)
+                    } else if get(layout, ii - 1, ji).is_floor() {
+                        layout[j][i] = Tile::Input(PI, *t)
+                    } else if get(layout, ii, ji - 1).is_floor() {
+                        layout[j][i] = Tile::Input(PI * 0.5, *t)
                     }
                 }
                 Tile::Output(_, t) => {
-                    if get(layout, i, 0, j, 1).is_floor() {
-                        layout[i][j] = Tile::Output(-PI * 0.5, *t)
-                    } else if get(layout, i, -1, j, 0).is_floor() {
-                        layout[i][j] = Tile::Output(PI, *t)
-                    } else if get(layout, i, 0, j, -1).is_floor() {
-                        layout[i][j] = Tile::Output(PI * 0.5, *t)
+                    if get(layout, ii, ji + 1).is_floor() {
+                        layout[j][i] = Tile::Output(-PI * 0.5, *t)
+                    } else if get(layout, ii - 1, ji).is_floor() {
+                        layout[j][i] = Tile::Output(PI, *t)
+                    } else if get(layout, ii, ji - 1).is_floor() {
+                        layout[j][i] = Tile::Output(PI * 0.5, *t)
                     }
                 }
                 _ => {}
@@ -209,12 +206,12 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
     let input = asset_server.load("models/input.glb#Scene0");
     let output = asset_server.load("models/output.glb#Scene0");
 
-    let mut level = Level::new(layout.len(), layout[0].len());
-    let (offset_x, offset_y) = level.offset();
+    let mut level = Level::new(layout[0].len(), layout.len());
+    let offset = level.offset();
 
-    for (i, row) in layout.into_iter().enumerate() {
-        for (j, tile) in row.into_iter().enumerate() {
-            let pos = Vec3::new(offset_x + i as f32, 0.0, offset_y + j as f32);
+    for (j, row) in layout.into_iter().enumerate() {
+        for (i, tile) in row.into_iter().enumerate() {
+            let pos = offset + Vec3::new(i as f32, 0.0, j as f32);
             match tile {
                 Tile::Empty => {}
                 Tile::Wall(nw, ne, se, sw) => {
@@ -236,7 +233,7 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                     spawn_object(object, i, j, pos, &mut level, &mut cmds, &asset_server);
                 }
                 Tile::Loadingbay => {
-                    *level.get_mut(i, j).unwrap() = 0;
+                    level.set_floor(i, j);
                     cmds.spawn(SceneBundle {
                         scene: loadingbay.clone(),
                         transform: Transform::from_translation(pos),
@@ -282,7 +279,6 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
             };
         }
     }
-
     cmds.insert_resource(level);
 }
 
@@ -296,131 +292,18 @@ fn spawn_object(
     asset_server: &Res<AssetServer>,
 ) {
     match object {
-        Object::Empty => *level.get_mut(i, j).unwrap() = 0,
-        Object::Belt => {
-            let block = Block::new(level.next_index(), i, j);
-            level.place(&block);
-            cmds.spawn((
-                SceneBundle {
-                    scene: asset_server.load("models/belt.glb#Scene0"),
-                    transform: Transform::from_translation(pos),
-                    ..Default::default()
-                },
-                MakeSceneDraggable(None),
-                CubeRouter(vec![Vec3::new(0.5, 1.0, 0.0), Vec3::new(-0.5, 1.0, 0.0)]),
-                block,
-            ));
-        }
-        Object::BeltR => {
-            let block = Block::new(level.next_index(), i, j);
-            level.place(&block);
-            cmds.spawn((
-                SceneBundle {
-                    scene: asset_server.load("models/beltR.glb#Scene0"),
-                    transform: Transform::from_translation(pos),
-                    ..Default::default()
-                },
-                MakeSceneDraggable(None),
-                CubeRouter(vec![
-                    Vec3::new(0.0, 1.0, 0.5),
-                    Vec3::new(0.0, 1.0, 0.0),
-                    Vec3::new(0.5, 1.0, 0.0),
-                ]),
-                block,
-            ));
-        }
-        Object::BeltL => {
-            let block = Block::new(level.next_index(), i, j);
-            level.place(&block);
-            cmds.spawn((
-                SceneBundle {
-                    scene: asset_server.load("models/beltL.glb#Scene0"),
-                    transform: Transform::from_translation(pos),
-                    ..Default::default()
-                },
-                MakeSceneDraggable(None),
-                CubeRouter(vec![
-                    Vec3::new(0.0, 1.0, 0.5),
-                    Vec3::new(0.0, 1.0, 0.0),
-                    Vec3::new(-0.5, 1.0, 0.0),
-                ]),
-                block,
-            ));
-        }
-        Object::Belt2 => {
-            let block = Block::new(level.next_index(), i, j).north();
-            level.place(&block);
-            cmds.spawn((
-                SpatialBundle::from_transform(Transform::from_translation(pos)),
-                MakeSceneDraggable(None),
-                CubeRouter(vec![
-                    Vec3::new(0.0, 1.0, 1.5),
-                    Vec3::new(0.0, 1.0, 0.5),
-                    Vec3::new(0.0, 1.0, -0.5),
-                ]),
-                block,
-            ))
-            .with_children(|p| {
-                let scene = asset_server.load("models/belt.glb#Scene0");
-                p.spawn((
-                    MakeSceneDraggable(Some(p.parent_entity())),
-                    SceneBundle {
-                        scene: scene.clone(),
-                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                        ..Default::default()
-                    },
-                ));
-                p.spawn((
-                    MakeSceneDraggable(Some(p.parent_entity())),
-                    SceneBundle {
-                        scene,
-                        transform: Transform::from_xyz(0.0, 0.0, 1.0),
-                        ..Default::default()
-                    },
-                ));
-            });
-        }
-        Object::Belt3 => {
-            let block = Block::new(level.next_index(), i, j).north().north();
-            level.place(&block);
-            cmds.spawn((
-                SpatialBundle::from_transform(Transform::from_translation(pos)),
-                MakeSceneDraggable(None),
-                CubeRouter(vec![
-                    Vec3::new(0.0, 1.0, 2.5),
-                    Vec3::new(0.0, 1.0, 1.5),
-                    Vec3::new(0.0, 1.0, 0.5),
-                    Vec3::new(0.0, 1.0, -0.5),
-                ]),
-                block,
-            ))
-            .with_children(|p| {
-                let scene = asset_server.load("models/belt.glb#Scene0");
-                p.spawn((
-                    MakeSceneDraggable(Some(p.parent_entity())),
-                    SceneBundle {
-                        scene: scene.clone(),
-                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                        ..Default::default()
-                    },
-                ));
-                p.spawn((
-                    MakeSceneDraggable(Some(p.parent_entity())),
-                    SceneBundle {
-                        scene: scene.clone(),
-                        transform: Transform::from_xyz(0.0, 0.0, 1.0),
-                        ..Default::default()
-                    },
-                ));
-                p.spawn((
-                    MakeSceneDraggable(Some(p.parent_entity())),
-                    SceneBundle {
-                        scene,
-                        transform: Transform::from_xyz(0.0, 0.0, 2.0),
-                        ..Default::default()
-                    },
-                ));
-            });
+        Object::Empty => level.set_floor(i, j),
+        Object::Belt(path) => {
+            let mut bb = BeltBuilder::new();
+            for c in path.chars() {
+                match c {
+                    'f' | 'F' => bb = bb.forward(asset_server),
+                    'l' | 'L' => bb = bb.left(asset_server),
+                    'r' | 'R' => bb = bb.right(asset_server),
+                    _ => panic!("Unknown direction"),
+                }
+            }
+            bb.build((i, j).into(), pos, level, cmds);
         }
     }
 }

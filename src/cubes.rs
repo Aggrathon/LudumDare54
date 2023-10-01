@@ -62,13 +62,13 @@ fn route_cubes(
                 );
                 if router.0.len() > 2 {
                     let mut eases = eases.ease_to(
-                        transform.with_translation(router.0[1]),
+                        transform.with_translation(router.0[2]),
                         EaseMethod::Linear,
                         EasingType::Once {
                             duration: Duration::from_millis(750),
                         },
                     );
-                    for p in router.0.iter().skip(2) {
+                    for p in router.0.iter().skip(3) {
                         eases = eases.ease_to(
                             transform.with_translation(*p),
                             EaseMethod::Linear,

@@ -12,6 +12,7 @@ mod camera;
 mod cubes;
 mod level;
 mod load;
+mod objects;
 
 fn main() {
     App::new()
