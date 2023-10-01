@@ -190,8 +190,8 @@ impl Block {
         self
     }
 
-    pub fn rotate(&mut self) -> &mut Self {
-        self.rotation = self.rotation.rotate();
+    pub fn rotate(&mut self, rotation: Direction) -> &mut Self {
+        self.rotation = rotation;
         self
     }
 
@@ -278,7 +278,7 @@ fn on_click(
                 dir = dir.rotate();
                 if level.try_place(&block, block.x, block.y, dir) {
                     level.remove(&block);
-                    block.rotation = dir;
+                    block.rotate(dir);
                     level.place(&block);
                     transform.rotation = Quat::from_rotation_y(dir.as_radians());
                     // TODO place sound

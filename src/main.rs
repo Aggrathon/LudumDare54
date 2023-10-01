@@ -4,10 +4,12 @@ use bevy::prelude::*;
 use bevy_easings::EasingsPlugin;
 
 use camera::CameraMovePlugin;
+use cubes::CubePlugin;
 use level::LevelPlugin;
 use load::{LoadLevel, LoadPlugin};
 
 mod camera;
+mod cubes;
 mod level;
 mod load;
 
@@ -24,6 +26,7 @@ fn main() {
             CameraMovePlugin,
             EasingsPlugin,
             LevelPlugin,
+            CubePlugin,
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, animate_light_direction)

@@ -6,6 +6,7 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use serde::Deserialize;
 
 use crate::camera::Unobstruct;
+use crate::cubes::{CubeProcessor, CubeRouter, CubeSpawner};
 use crate::level::{Block, Level, MakeSceneDraggable};
 use crate::AppState;
 
@@ -35,8 +36,8 @@ pub enum Tile {
     Wall(f32, f32, f32, f32),
     Floor(Object),
     Loadingbay,
-    Input(f32),
-    Output(f32),
+    Input(f32, usize),
+    Output(f32, usize),
     Door(f32, f32, f32, f32, f32),
 }
 
@@ -47,6 +48,8 @@ pub enum Object {
     Belt,
     Belt2,
     Belt3,
+    BeltR,
+    BeltL,
 }
 
 impl Tile {
@@ -91,8 +94,14 @@ fn level_parse(level: &LevelFile) -> Vec<Vec<Tile>> {
                     ' ' => Tile::Floor(Object::Empty),
                     'E' => Tile::Empty,
                     'L' => Tile::Loadingbay,
-                    'I' => Tile::Input(0.0),
-                    'O' => Tile::Output(0.0),
+                    'I' => Tile::Input(0.0, 0),
+                    'O' => Tile::Output(0.0, 0),
+                    'i' => Tile::Input(0.0, 1),
+                    'o' => Tile::Output(0.0, 1),
+                    'N' => Tile::Input(0.0, 2),
+                    'U' => Tile::Output(0.0, 2),
+                    'n' => Tile::Input(0.0, 3),
+                    'u' => Tile::Output(0.0, 3),
                     '#' => Tile::Wall(0.0, 0.0, 0.0, 0.0),
                     '0' => Tile::Floor(level.objects[0]),
                     '1' => Tile::Floor(level.objects[1]),
@@ -168,22 +177,22 @@ fn level_surround(layout: &mut Vec<Vec<Tile>>) {
                         layout[i][j] = Tile::Wall(nw, ne, se, sw);
                     }
                 }
-                Tile::Input(_) => {
+                Tile::Input(_, t) => {
                     if get(layout, i, 0, j, 1).is_floor() {
-                        layout[i][j] = Tile::Input(-PI * 0.5)
+                        layout[i][j] = Tile::Input(-PI * 0.5, *t)
                     } else if get(layout, i, -1, j, 0).is_floor() {
-                        layout[i][j] = Tile::Input(PI)
+                        layout[i][j] = Tile::Input(PI, *t)
                     } else if get(layout, i, 0, j, -1).is_floor() {
-                        layout[i][j] = Tile::Input(PI * 0.5)
+                        layout[i][j] = Tile::Input(PI * 0.5, *t)
                     }
                 }
-                Tile::Output(_) => {
+                Tile::Output(_, t) => {
                     if get(layout, i, 0, j, 1).is_floor() {
-                        layout[i][j] = Tile::Output(-PI * 0.5)
+                        layout[i][j] = Tile::Output(-PI * 0.5, *t)
                     } else if get(layout, i, -1, j, 0).is_floor() {
-                        layout[i][j] = Tile::Output(PI)
+                        layout[i][j] = Tile::Output(PI, *t)
                     } else if get(layout, i, 0, j, -1).is_floor() {
-                        layout[i][j] = Tile::Output(PI * 0.5)
+                        layout[i][j] = Tile::Output(PI * 0.5, *t)
                     }
                 }
                 _ => {}
@@ -205,15 +214,14 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
 
     for (i, row) in layout.into_iter().enumerate() {
         for (j, tile) in row.into_iter().enumerate() {
-            let x = offset_x + i as f32;
-            let y = offset_y + j as f32;
+            let pos = Vec3::new(offset_x + i as f32, 0.0, offset_y + j as f32);
             match tile {
                 Tile::Empty => {}
                 Tile::Wall(nw, ne, se, sw) => {
                     cmds.spawn((
                         SceneBundle {
                             scene: wall.clone(),
-                            transform: Transform::from_xyz(x, 0.0, y),
+                            transform: Transform::from_translation(pos),
                             ..Default::default()
                         },
                         Unobstruct { nw, ne, se, sw },
@@ -222,40 +230,49 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                 Tile::Floor(object) => {
                     cmds.spawn(SceneBundle {
                         scene: floor.clone(),
-                        transform: Transform::from_xyz(x, 0.0, y),
+                        transform: Transform::from_translation(pos),
                         ..Default::default()
                     });
-                    spawn_object(object, i, j, x, y, &mut level, &mut cmds, &asset_server);
+                    spawn_object(object, i, j, pos, &mut level, &mut cmds, &asset_server);
                 }
                 Tile::Loadingbay => {
                     *level.get_mut(i, j).unwrap() = 0;
                     cmds.spawn(SceneBundle {
                         scene: loadingbay.clone(),
-                        transform: Transform::from_xyz(x, 0.0, y),
+                        transform: Transform::from_translation(pos),
                         ..Default::default()
                     });
                 }
-                Tile::Input(rot) => {
-                    cmds.spawn(SceneBundle {
-                        scene: input.clone(),
-                        transform: Transform::from_xyz(x, 0.0, y)
-                            .with_rotation(Quat::from_rotation_y(rot)),
-                        ..Default::default()
-                    });
+                Tile::Input(rot, _typ) => {
+                    // TODO color based on type
+                    cmds.spawn((
+                        SceneBundle {
+                            scene: input.clone(),
+                            transform: Transform::from_translation(pos)
+                                .with_rotation(Quat::from_rotation_y(rot)),
+                            ..Default::default()
+                        },
+                        CubeSpawner::new(Vec3::Y, 2.0),
+                        CubeRouter(vec![Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.5, 1.0, 0.0)]),
+                    ));
                 }
-                Tile::Output(rot) => {
-                    cmds.spawn(SceneBundle {
-                        scene: output.clone(),
-                        transform: Transform::from_xyz(x, 0.0, y)
-                            .with_rotation(Quat::from_rotation_y(rot)),
-                        ..Default::default()
-                    });
+                Tile::Output(rot, _typ) => {
+                    cmds.spawn((
+                        SceneBundle {
+                            scene: output.clone(),
+                            transform: Transform::from_translation(pos)
+                                .with_rotation(Quat::from_rotation_y(rot)),
+                            ..Default::default()
+                        },
+                        CubeProcessor::default(),
+                        CubeRouter(vec![Vec3::new(-0.5, 1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)]),
+                    ));
                 }
                 Tile::Door(rot, nw, ne, se, sw) => {
                     cmds.spawn((
                         SceneBundle {
                             scene: door.clone(),
-                            transform: Transform::from_xyz(x, 0.0, y)
+                            transform: Transform::from_translation(pos)
                                 .with_rotation(Quat::from_rotation_y(rot)),
                             ..Default::default()
                         },
@@ -269,13 +286,11 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
     cmds.insert_resource(level);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_object(
     object: Object,
     i: usize,
     j: usize,
-    x: f32,
-    y: f32,
+    pos: Vec3,
     level: &mut Level,
     cmds: &mut Commands,
     asset_server: &Res<AssetServer>,
@@ -288,25 +303,64 @@ fn spawn_object(
             cmds.spawn((
                 SceneBundle {
                     scene: asset_server.load("models/belt.glb#Scene0"),
-                    transform: Transform::from_xyz(x, 0.0, y),
+                    transform: Transform::from_translation(pos),
                     ..Default::default()
                 },
                 MakeSceneDraggable(None),
+                CubeRouter(vec![Vec3::new(0.5, 1.0, 0.0), Vec3::new(-0.5, 1.0, 0.0)]),
+                block,
+            ));
+        }
+        Object::BeltR => {
+            let block = Block::new(level.next_index(), i, j);
+            level.place(&block);
+            cmds.spawn((
+                SceneBundle {
+                    scene: asset_server.load("models/beltR.glb#Scene0"),
+                    transform: Transform::from_translation(pos),
+                    ..Default::default()
+                },
+                MakeSceneDraggable(None),
+                CubeRouter(vec![
+                    Vec3::new(0.0, 1.0, 0.5),
+                    Vec3::new(0.0, 1.0, 0.0),
+                    Vec3::new(0.5, 1.0, 0.0),
+                ]),
+                block,
+            ));
+        }
+        Object::BeltL => {
+            let block = Block::new(level.next_index(), i, j);
+            level.place(&block);
+            cmds.spawn((
+                SceneBundle {
+                    scene: asset_server.load("models/beltL.glb#Scene0"),
+                    transform: Transform::from_translation(pos),
+                    ..Default::default()
+                },
+                MakeSceneDraggable(None),
+                CubeRouter(vec![
+                    Vec3::new(0.0, 1.0, 0.5),
+                    Vec3::new(0.0, 1.0, 0.0),
+                    Vec3::new(-0.5, 1.0, 0.0),
+                ]),
                 block,
             ));
         }
         Object::Belt2 => {
-            dbg!(&object);
             let block = Block::new(level.next_index(), i, j).north();
             level.place(&block);
             cmds.spawn((
-                VisibilityBundle::default(),
-                TransformBundle::from_transform(Transform::from_xyz(x, 0.0, y)),
+                SpatialBundle::from_transform(Transform::from_translation(pos)),
                 MakeSceneDraggable(None),
+                CubeRouter(vec![
+                    Vec3::new(0.0, 1.0, 1.5),
+                    Vec3::new(0.0, 1.0, 0.5),
+                    Vec3::new(0.0, 1.0, -0.5),
+                ]),
                 block,
             ))
             .with_children(|p| {
-                dbg!(&object);
                 let scene = asset_server.load("models/belt.glb#Scene0");
                 p.spawn((
                     MakeSceneDraggable(Some(p.parent_entity())),
@@ -330,9 +384,14 @@ fn spawn_object(
             let block = Block::new(level.next_index(), i, j).north().north();
             level.place(&block);
             cmds.spawn((
-                VisibilityBundle::default(),
-                TransformBundle::from_transform(Transform::from_xyz(x, 0.0, y)),
+                SpatialBundle::from_transform(Transform::from_translation(pos)),
                 MakeSceneDraggable(None),
+                CubeRouter(vec![
+                    Vec3::new(0.0, 1.0, 2.5),
+                    Vec3::new(0.0, 1.0, 1.5),
+                    Vec3::new(0.0, 1.0, 0.5),
+                    Vec3::new(0.0, 1.0, -0.5),
+                ]),
                 block,
             ))
             .with_children(|p| {
