@@ -26,6 +26,7 @@ pub enum LevelState {
     #[default]
     MainMenu,
     Level00,
+    Level01,
     Test,
 }
 
@@ -34,6 +35,7 @@ impl LevelState {
         match self {
             LevelState::MainMenu => "levels/main_menu.ron",
             LevelState::Level00 => "levels/level_00.ron",
+            LevelState::Level01 => "levels/level_01.ron",
             LevelState::Test => "levels/test.ron",
         }
     }
@@ -41,7 +43,8 @@ impl LevelState {
     pub fn next(&self) -> Self {
         match self {
             LevelState::MainMenu => LevelState::Level00,
-            LevelState::Level00 => LevelState::Test,
+            LevelState::Level00 => LevelState::Level01,
+            LevelState::Level01 => LevelState::MainMenu,
             LevelState::Test => LevelState::MainMenu,
         }
     }

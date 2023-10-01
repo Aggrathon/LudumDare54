@@ -1,0 +1,21 @@
+(
+    layout: [
+        "#####O####EEE",
+        "#    1__ #EEE",
+        "# __     #EEE",
+        "u 4   ___####",
+        "#  2_   _ _2#",
+        "####  _ 3_  I",
+        "EEE#  _  ___#",
+        "EEE#  5  04 #",
+        "EEE######n###",
+    ],
+    objects: [
+        Belt("ff"),
+        Belt("rff"),
+        Belt("lf"),
+        Belt("fflfff"),
+        Belt("frf"),
+        Belt("fff"),
+    ]
+)
