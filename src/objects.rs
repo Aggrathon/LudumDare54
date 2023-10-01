@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::cubes::CubeRouter;
-use crate::level::{Block, Dis2, Level, MakeSceneDraggable, Rotation};
+use crate::game::{Block, Dis2, Level, MakeSceneDraggable, Rotation};
+use crate::levels::LevelEntity;
 
 pub struct BeltBuilder {
     tiles: Vec<Dis2>,
@@ -80,6 +81,7 @@ impl BeltBuilder {
             MakeSceneDraggable(None),
             CubeRouter(self.route),
             block,
+            LevelEntity,
         ))
         .with_children(|p| {
             for scene in self.scenes.into_iter() {

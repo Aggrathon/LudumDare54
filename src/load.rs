@@ -7,7 +7,8 @@ use serde::Deserialize;
 
 use crate::camera::Unobstruct;
 use crate::cubes::{CubeColor, CubeProcessor, CubeRouter, CubeSpawner};
-use crate::level::Level;
+use crate::game::Level;
+use crate::levels::LevelEntity;
 use crate::objects::BeltBuilder;
 use crate::AppState;
 
@@ -16,11 +17,12 @@ pub struct LoadPlugin;
 impl Plugin for LoadPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RonAssetPlugin::<LevelFile>::new(&["ron"]))
+            .init_resource::<LoadLevel>()
             .add_systems(PreUpdate, load_level.run_if(in_state(AppState::Loading)));
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct LoadLevel(pub Handle<LevelFile>);
 
 #[derive(Deserialize, TypeUuid, TypePath)]
@@ -89,6 +91,7 @@ fn level_parse(level: &LevelFile) -> Vec<Vec<Tile>> {
             row.chars()
                 .map(|c| match c {
                     ' ' => Tile::Floor(Object::Empty),
+                    '_' => Tile::Floor(Object::Empty),
                     'E' => Tile::Empty,
                     'L' => Tile::Loadingbay,
                     'I' => Tile::Input(0.0, CubeColor::Green),
@@ -220,23 +223,30 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                             ..Default::default()
                         },
                         Unobstruct { nw, ne, se, sw },
+                        LevelEntity,
                     ));
                 }
                 Tile::Floor(object) => {
-                    cmds.spawn(SceneBundle {
-                        scene: floor.clone(),
-                        transform: Transform::from_translation(pos),
-                        ..Default::default()
-                    });
+                    cmds.spawn((
+                        LevelEntity,
+                        SceneBundle {
+                            scene: floor.clone(),
+                            transform: Transform::from_translation(pos),
+                            ..Default::default()
+                        },
+                    ));
                     spawn_object(object, i, j, pos, &mut level, &mut cmds, &asset_server);
                 }
                 Tile::Loadingbay => {
                     level.set_floor(i, j);
-                    cmds.spawn(SceneBundle {
-                        scene: loadingbay.clone(),
-                        transform: Transform::from_translation(pos),
-                        ..Default::default()
-                    });
+                    cmds.spawn((
+                        SceneBundle {
+                            scene: loadingbay.clone(),
+                            transform: Transform::from_translation(pos),
+                            ..Default::default()
+                        },
+                        LevelEntity,
+                    ));
                 }
                 Tile::Input(rot, color) => {
                     // TODO color based on type
@@ -249,6 +259,7 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                         },
                         CubeSpawner::new(Vec3::Y, 2.0, color),
                         CubeRouter(vec![Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 1.0, -0.5)]),
+                        LevelEntity,
                     ));
                 }
                 Tile::Output(rot, color) => {
@@ -261,6 +272,7 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                         },
                         CubeProcessor::new(color),
                         CubeRouter(vec![Vec3::new(0.0, 1.0, 0.5), Vec3::new(0.0, 1.0, 0.0)]),
+                        LevelEntity,
                     ));
                 }
                 Tile::Door(rot, nw, ne, se, sw) => {
@@ -272,6 +284,7 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                             ..Default::default()
                         },
                         Unobstruct { nw, ne, se, sw },
+                        LevelEntity,
                     ));
                 }
             };

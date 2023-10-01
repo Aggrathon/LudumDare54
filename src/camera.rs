@@ -6,16 +6,25 @@ use bevy::prelude::*;
 use bevy_easings::*;
 use bevy_mod_picking::prelude::*;
 
+use crate::levels::LevelState;
+use crate::AppState;
+
 pub struct CameraMovePlugin;
 
 impl Plugin for CameraMovePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
-            .insert_resource(DirectionalLightShadowMap { size: 4096 })
+        app.insert_resource(DirectionalLightShadowMap { size: 4096 })
             .insert_resource(ClearColor(Color::rgb(0.4, 0.7, 0.7)))
-            // .add_systems(Update, animate_camera_direction)
-            .add_systems(PreUpdate, camera_rot)
-            .add_systems(PostUpdate, (camera_move, camera_unobstruct));
+            .add_systems(
+                Update,
+                animate_camera_direction.run_if(in_state(LevelState::MainMenu)),
+            )
+            .add_systems(OnEnter(AppState::Loading), spawn_camera)
+            .add_systems(PreUpdate, camera_rot.run_if(in_state(AppState::Level)))
+            .add_systems(
+                PostUpdate,
+                (camera_move, camera_unobstruct).run_if(in_state(AppState::Level)),
+            );
     }
 }
 
@@ -33,7 +42,10 @@ struct CameraDolly;
 #[derive(Component)]
 struct CameraArm;
 
-fn setup(mut commands: Commands) {
+fn spawn_camera(query: Query<Entity, With<CameraDolly>>, mut commands: Commands) {
+    for e in query.iter() {
+        commands.entity(e).despawn_recursive()
+    }
     let rot = Quat::from_rotation_y(PI * 0.25);
     commands
         .spawn((
@@ -46,7 +58,7 @@ fn setup(mut commands: Commands) {
                 .with_children(|p| {
                     p.spawn((
                         Camera3dBundle {
-                            transform: Transform::from_xyz(10.0, 12.0, 0.0)
+                            transform: Transform::from_xyz(-10.0, 12.0, 0.0)
                                 .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
                             ..Default::default()
                         },
@@ -121,10 +133,9 @@ fn camera_move(
     }
 }
 
-#[allow(dead_code)]
 fn animate_camera_direction(time: Res<Time>, mut query: Query<&mut Transform, With<CameraArm>>) {
     for mut transform in &mut query {
-        transform.rotate_y(time.delta_seconds() * PI / 10.0);
+        transform.rotate_y(time.delta_seconds() * PI / 20.0);
     }
 }
 

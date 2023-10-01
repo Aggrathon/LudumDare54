@@ -5,13 +5,18 @@ use bevy::math::vec4;
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
 
-pub struct LevelPlugin;
+use crate::AppState;
 
-impl Plugin for LevelPlugin {
+pub struct GamePlugin;
+
+impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(DefaultPickingPlugins)
+        app
             // .add_systems(Startup, setup)
-            .add_systems(Update, make_scene_draggable);
+            .add_systems(
+                Update,
+                make_scene_draggable.run_if(in_state(AppState::Level)),
+            );
     }
 }
 
@@ -511,7 +516,7 @@ mod tests {
             ],
             obj.iter().collect::<Vec<Dis2>>()
         );
-        assert_eq!(obj.rotation, super::Rotation::D90);
+        assert_eq!(obj.rotation, Rotation::D90);
         obj.translate(Dis2::X);
         assert_eq!(
             vec![

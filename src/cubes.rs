@@ -5,6 +5,17 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy_easings::*;
 
+use crate::levels::LevelEntity;
+
+pub struct CubePlugin;
+
+impl Plugin for CubePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(PostUpdate, route_cubes)
+            .add_systems(PreUpdate, (process_cubes, cube_spawner));
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CubeColor {
     Green,
@@ -30,15 +41,6 @@ impl CubeColor {
             CubeColor::Yellow => "models/inoutY.glb#Scene0",
             CubeColor::Black => "models/inoutB.glb#Scene0",
         }
-    }
-}
-
-pub struct CubePlugin;
-
-impl Plugin for CubePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, route_cubes)
-            .add_systems(PreUpdate, (process_cubes, cube_spawner));
     }
 }
 
@@ -169,6 +171,7 @@ fn cube_spawner(
                         ..Default::default()
                     },
                     Cube(spawner.color),
+                    LevelEntity,
                 ));
             });
             spawner.next = time.elapsed_seconds() + spawner.delay;

@@ -1,17 +1,17 @@
-use std::f32::consts::*;
-
-use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 use bevy_easings::EasingsPlugin;
+use bevy_mod_picking::DefaultPickingPlugins;
 
 use camera::CameraMovePlugin;
 use cubes::CubePlugin;
-use level::LevelPlugin;
-use load::{LoadLevel, LoadPlugin};
+use game::GamePlugin;
+use levels::LevelManagerPlugin;
+use load::LoadPlugin;
 
 mod camera;
 mod cubes;
-mod level;
+mod game;
+mod levels;
 mod load;
 mod objects;
 
@@ -24,56 +24,21 @@ fn main() {
         .add_state::<AppState>()
         .add_plugins((
             DefaultPlugins,
+            DefaultPickingPlugins,
+            EasingsPlugin,
             LoadPlugin,
             CameraMovePlugin,
-            EasingsPlugin,
-            LevelPlugin,
+            GamePlugin,
             CubePlugin,
+            LevelManagerPlugin,
         ))
-        .add_systems(Startup, setup)
-        .add_systems(Update, animate_light_direction)
         .run();
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum AppState {
     #[default]
-    Menu,
     Loading,
     Level,
     Unloading,
-}
-
-fn setup(
-    mut state: ResMut<NextState<AppState>>,
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    commands.spawn(DirectionalLightBundle {
-        transform: Transform::from_xyz(0.0, 3.0, 0.0).looking_at(Vec3::new(1.0, 0.0, 1.0), Vec3::Y),
-        directional_light: DirectionalLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        cascade_shadow_config: CascadeShadowConfigBuilder::default().build(),
-        ..default()
-    });
-    commands.insert_resource(LoadLevel(asset_server.load("levels/test.ron")));
-    state.set(AppState::Loading);
-}
-
-fn animate_light_direction(
-    time: Res<Time>,
-    mut query: Query<&mut Transform, With<DirectionalLight>>,
-) {
-    for mut transform in &mut query {
-        *transform = Transform::from_xyz(0.0, 3.0, 0.0).looking_at(
-            Vec3::new(
-                f32::sin(time.elapsed_seconds() * PI / 20.0),
-                0.0,
-                f32::cos(time.elapsed_seconds() * PI / 20.0),
-            ),
-            Vec3::Y,
-        );
-    }
 }
