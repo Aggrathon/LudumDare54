@@ -4,6 +4,7 @@ use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 
 use crate::load::LoadLevel;
+use crate::ui::ShowDialog;
 use crate::AppState;
 
 pub struct LevelManagerPlugin;
@@ -24,6 +25,7 @@ pub struct LevelEntity;
 pub enum LevelState {
     #[default]
     MainMenu,
+    Level00,
     Test,
 }
 
@@ -31,13 +33,15 @@ impl LevelState {
     pub fn get_path(&self) -> &'static str {
         match self {
             LevelState::MainMenu => "levels/main_menu.ron",
+            LevelState::Level00 => "levels/level_00.ron",
             LevelState::Test => "levels/test.ron",
         }
     }
 
     pub fn next(&self) -> Self {
         match self {
-            LevelState::MainMenu => LevelState::Test,
+            LevelState::MainMenu => LevelState::Level00,
+            LevelState::Level00 => LevelState::Test,
             LevelState::Test => LevelState::MainMenu,
         }
     }
@@ -77,8 +81,16 @@ fn load_level(
     level: Res<State<LevelState>>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut dialog: EventWriter<ShowDialog>,
 ) {
     commands.insert_resource(LoadLevel(asset_server.load(level.get_path())));
+    match **level {
+        LevelState::Level00 => {
+            dialog.send(ShowDialog("Use WASD/arrows + QE to look around.\nDrag conveyor belts with your mouse.\nRight click to rotate them (if there is enough space).".to_string()));
+        }
+        LevelState::Test => {}
+        _ => {}
+    };
 }
 
 fn skip_level(mut keys: ResMut<Input<KeyCode>>, mut state: ResMut<NextState<AppState>>) {

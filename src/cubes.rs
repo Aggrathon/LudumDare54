@@ -11,8 +11,8 @@ pub struct CubePlugin;
 
 impl Plugin for CubePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, route_cubes)
-            .add_systems(PreUpdate, (process_cubes, cube_spawner));
+        app.add_systems(PreUpdate, route_cubes)
+            .add_systems(Update, (process_cubes, cube_spawner));
     }
 }
 
