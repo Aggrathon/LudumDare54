@@ -6,7 +6,7 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use serde::Deserialize;
 
 use crate::camera::Unobstruct;
-use crate::cubes::{CubeProcessor, CubeRouter, CubeSpawner};
+use crate::cubes::{CubeColor, CubeProcessor, CubeRouter, CubeSpawner};
 use crate::level::Level;
 use crate::objects::BeltBuilder;
 use crate::AppState;
@@ -37,8 +37,8 @@ pub enum Tile {
     Wall(f32, f32, f32, f32),
     Floor(Object),
     Loadingbay,
-    Input(f32, usize),
-    Output(f32, usize),
+    Input(f32, CubeColor),
+    Output(f32, CubeColor),
     Door(f32, f32, f32, f32, f32),
 }
 
@@ -91,14 +91,14 @@ fn level_parse(level: &LevelFile) -> Vec<Vec<Tile>> {
                     ' ' => Tile::Floor(Object::Empty),
                     'E' => Tile::Empty,
                     'L' => Tile::Loadingbay,
-                    'I' => Tile::Input(0.0, 0),
-                    'O' => Tile::Output(0.0, 0),
-                    'i' => Tile::Input(0.0, 1),
-                    'o' => Tile::Output(0.0, 1),
-                    'N' => Tile::Input(0.0, 2),
-                    'U' => Tile::Output(0.0, 2),
-                    'n' => Tile::Input(0.0, 3),
-                    'u' => Tile::Output(0.0, 3),
+                    'I' => Tile::Input(0.0, CubeColor::Green),
+                    'O' => Tile::Output(0.0, CubeColor::Green),
+                    'i' => Tile::Input(0.0, CubeColor::Purple),
+                    'o' => Tile::Output(0.0, CubeColor::Purple),
+                    'N' => Tile::Input(0.0, CubeColor::Yellow),
+                    'U' => Tile::Output(0.0, CubeColor::Yellow),
+                    'n' => Tile::Input(0.0, CubeColor::Black),
+                    'u' => Tile::Output(0.0, CubeColor::Black),
                     '#' => Tile::Wall(0.0, 0.0, 0.0, 0.0),
                     '0' => Tile::Floor(level.objects[0].clone()),
                     '1' => Tile::Floor(level.objects[1].clone()),
@@ -130,66 +130,66 @@ fn level_surround(layout: &mut Vec<Vec<Tile>>) {
     };
     for j in 0..layout.len() {
         for i in 0..layout[j].len() {
-            let ii = i as isize;
-            let ji = j as isize;
+            let x = i as isize;
+            let z = j as isize;
             match &layout[j][i] {
                 Tile::Wall(_, _, _, _) => {
-                    let nw = if get(layout, ii - 1, ji - 1).obstructable() {
+                    let nw = if get(layout, x - 1, z - 1).obstructable() {
                         -2.0
-                    } else if get(layout, ii - 2, ji - 2).obstructable() {
+                    } else if get(layout, x - 2, z - 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    let ne = if get(layout, ii - 1, ji + 1).obstructable() {
+                    let ne = if get(layout, x - 1, z + 1).obstructable() {
                         -2.0
-                    } else if get(layout, ii - 2, ji + 2).obstructable() {
+                    } else if get(layout, x - 2, z + 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    let se = if get(layout, ii + 1, ji + 1).obstructable() {
+                    let se = if get(layout, x + 1, z + 1).obstructable() {
                         -2.0
-                    } else if get(layout, ii + 2, ji + 2).obstructable() {
+                    } else if get(layout, x + 2, z + 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    let sw = if get(layout, ii + 1, ji - 1).obstructable() {
+                    let sw = if get(layout, x + 1, z - 1).obstructable() {
                         -2.0
-                    } else if get(layout, ii + 2, ji - 2).obstructable() {
+                    } else if get(layout, x + 2, z - 2).obstructable() {
                         -1.0
                     } else {
                         0.0
                     };
-                    if get(layout, ii, ji + 1).is_loadingbay() {
+                    if get(layout, x, z + 1).is_loadingbay() {
                         layout[j][i] = Tile::Door(PI * 0.5, nw, ne, se, sw);
-                    } else if get(layout, ii + 1, ji).is_loadingbay() {
+                    } else if get(layout, x + 1, z).is_loadingbay() {
                         layout[j][i] = Tile::Door(0.0, nw, ne, se, sw);
-                    } else if get(layout, ii, ji - 1).is_loadingbay() {
+                    } else if get(layout, x, z - 1).is_loadingbay() {
                         layout[j][i] = Tile::Door(-PI * 0.5, nw, ne, se, sw);
-                    } else if get(layout, ii - 1, ji).is_loadingbay() {
+                    } else if get(layout, x - 1, z).is_loadingbay() {
                         layout[j][i] = Tile::Door(PI, nw, ne, se, sw);
                     } else {
                         layout[j][i] = Tile::Wall(nw, ne, se, sw);
                     }
                 }
                 Tile::Input(_, t) => {
-                    if get(layout, ii, ji + 1).is_floor() {
-                        layout[j][i] = Tile::Input(-PI * 0.5, *t)
-                    } else if get(layout, ii - 1, ji).is_floor() {
+                    if get(layout, x + 1, z).is_floor() {
                         layout[j][i] = Tile::Input(PI, *t)
-                    } else if get(layout, ii, ji - 1).is_floor() {
+                    } else if get(layout, x, z + 1).is_floor() {
                         layout[j][i] = Tile::Input(PI * 0.5, *t)
+                    } else if get(layout, x, z - 1).is_floor() {
+                        layout[j][i] = Tile::Input(-PI * 0.5, *t)
                     }
                 }
                 Tile::Output(_, t) => {
-                    if get(layout, ii, ji + 1).is_floor() {
-                        layout[j][i] = Tile::Output(-PI * 0.5, *t)
-                    } else if get(layout, ii - 1, ji).is_floor() {
-                        layout[j][i] = Tile::Output(PI, *t)
-                    } else if get(layout, ii, ji - 1).is_floor() {
+                    if get(layout, x + 1, z).is_floor() {
                         layout[j][i] = Tile::Output(PI * 0.5, *t)
+                    } else if get(layout, x - 1, z).is_floor() {
+                        layout[j][i] = Tile::Output(-PI * 0.5, *t)
+                    } else if get(layout, x, z - 1).is_floor() {
+                        layout[j][i] = Tile::Output(PI, *t)
                     }
                 }
                 _ => {}
@@ -203,8 +203,6 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
     let loadingbay = asset_server.load("models/loadingbay.glb#Scene0");
     let wall = asset_server.load("models/wall.glb#Scene0");
     let door = asset_server.load("models/door.glb#Scene0");
-    let input = asset_server.load("models/input.glb#Scene0");
-    let output = asset_server.load("models/output.glb#Scene0");
 
     let mut level = Level::new(layout[0].len(), layout.len());
     let offset = level.offset();
@@ -240,29 +238,29 @@ fn level_spawn(layout: Vec<Vec<Tile>>, mut cmds: Commands, asset_server: Res<Ass
                         ..Default::default()
                     });
                 }
-                Tile::Input(rot, _typ) => {
+                Tile::Input(rot, color) => {
                     // TODO color based on type
                     cmds.spawn((
                         SceneBundle {
-                            scene: input.clone(),
+                            scene: asset_server.load(color.io_path()),
                             transform: Transform::from_translation(pos)
-                                .with_rotation(Quat::from_rotation_y(rot)),
+                                .with_rotation(Quat::from_rotation_y(rot + PI * 0.5)),
                             ..Default::default()
                         },
-                        CubeSpawner::new(Vec3::Y, 2.0),
-                        CubeRouter(vec![Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.5, 1.0, 0.0)]),
+                        CubeSpawner::new(Vec3::Y, 2.0, color),
+                        CubeRouter(vec![Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 1.0, -0.5)]),
                     ));
                 }
-                Tile::Output(rot, _typ) => {
+                Tile::Output(rot, color) => {
                     cmds.spawn((
                         SceneBundle {
-                            scene: output.clone(),
+                            scene: asset_server.load(color.io_path()),
                             transform: Transform::from_translation(pos)
                                 .with_rotation(Quat::from_rotation_y(rot)),
                             ..Default::default()
                         },
-                        CubeProcessor::default(),
-                        CubeRouter(vec![Vec3::new(-0.5, 1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)]),
+                        CubeProcessor::new(color),
+                        CubeRouter(vec![Vec3::new(0.0, 1.0, 0.5), Vec3::new(0.0, 1.0, 0.0)]),
                     ));
                 }
                 Tile::Door(rot, nw, ne, se, sw) => {

@@ -5,6 +5,34 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy_easings::*;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CubeColor {
+    Green,
+    Purple,
+    Yellow,
+    Black,
+}
+
+impl CubeColor {
+    pub fn cube_path(&self) -> &str {
+        match self {
+            CubeColor::Green => "models/cubeG.glb#Scene0",
+            CubeColor::Purple => "models/cubeP.glb#Scene0",
+            CubeColor::Yellow => "models/cubeY.glb#Scene0",
+            CubeColor::Black => "models/cubeB.glb#Scene0",
+        }
+    }
+
+    pub fn io_path(&self) -> &str {
+        match self {
+            CubeColor::Green => "models/inoutG.glb#Scene0",
+            CubeColor::Purple => "models/inoutP.glb#Scene0",
+            CubeColor::Yellow => "models/inoutY.glb#Scene0",
+            CubeColor::Black => "models/inoutB.glb#Scene0",
+        }
+    }
+}
+
 pub struct CubePlugin;
 
 impl Plugin for CubePlugin {
@@ -14,27 +42,36 @@ impl Plugin for CubePlugin {
     }
 }
 
-#[derive(Component, Default, Clone, Copy)]
-pub struct Cube {
-    // pub state: u8,
+#[derive(Component, Clone, Copy, Debug)]
+pub struct Cube(CubeColor);
+
+#[derive(Component, Debug)]
+pub struct CubeProcessor {
+    count: usize,
+    color: CubeColor,
 }
 
-#[derive(Component, Default)]
-pub struct CubeProcessor(usize);
+impl CubeProcessor {
+    pub fn new(color: CubeColor) -> Self {
+        Self { count: 0, color }
+    }
+}
 
 #[derive(Component)]
 pub struct CubeSpawner {
     pos: Vec3,
     delay: f32,
     next: f32,
+    color: CubeColor,
 }
 
 impl CubeSpawner {
-    pub fn new(pos: Vec3, delay: f32) -> Self {
+    pub fn new(pos: Vec3, delay: f32, color: CubeColor) -> Self {
         Self {
             pos,
             delay,
             next: 0.0,
+            color,
         }
     }
 }
@@ -93,9 +130,8 @@ fn route_cubes(
 
 fn process_cubes(
     query: Query<
-        (Entity, &Parent),
+        (Entity, &Parent, &Cube),
         (
-            With<Cube>,
             Without<EasingComponent<Transform>>,
             Without<EasingChainComponent<Transform>>,
         ),
@@ -103,9 +139,13 @@ fn process_cubes(
     mut processors: Query<&mut CubeProcessor>,
     mut cmds: Commands,
 ) {
-    for (entity, parent) in query.iter() {
+    for (entity, parent, cube) in query.iter() {
         if let Ok(mut proc) = processors.get_mut(parent.get()) {
-            proc.0 += 1;
+            if cube.0 == proc.color {
+                proc.count += 1;
+            } else {
+                // TODO error sound
+            }
             cmds.entity(entity).despawn_recursive();
         } else {
             cmds.entity(entity).remove_parent_in_place();
@@ -124,11 +164,11 @@ fn cube_spawner(
             cmds.entity(entity).with_children(|p| {
                 p.spawn((
                     SceneBundle {
-                        scene: asset_server.load("models/cube.glb#Scene0"),
+                        scene: asset_server.load(spawner.color.cube_path()),
                         transform: Transform::from_translation(spawner.pos),
                         ..Default::default()
                     },
-                    Cube {},
+                    Cube(spawner.color),
                 ));
             });
             spawner.next = time.elapsed_seconds() + spawner.delay;
