@@ -152,8 +152,8 @@ impl Level {
         self.index
     }
 
-    pub fn try_place(&self, block: &Block, dis: Dis2, dir: Rotation) -> bool {
-        for pos in block.iter_with(dis, dir) {
+    pub fn try_place(&self, block: &Block, position: Dis2, rotation: Rotation) -> bool {
+        for pos in block.iter_with(position, rotation) {
             match self.getd(pos) {
                 Some(0) => {}
                 Some(i) if *i == block.index => {}
@@ -349,10 +349,10 @@ impl Block {
         self.iter_with(self.position, self.rotation)
     }
 
-    pub fn iter_with(&self, dis: Dis2, rotation: Rotation) -> impl Iterator<Item = Dis2> + '_ {
+    pub fn iter_with(&self, position: Dis2, rotation: Rotation) -> impl Iterator<Item = Dis2> + '_ {
         self.tiles
             .iter()
-            .map(move |dir| dis + dir.rotated(rotation))
+            .map(move |tile| position + tile.rotated(rotation))
     }
 }
 
@@ -432,24 +432,31 @@ fn on_click(
     }
     if let Ok(root) = root_query.get(event.target) {
         if let Ok((mut transform, mut block)) = block_query.get_mut(root.0) {
-            let mut dir = block.rotation;
+            let mut rotation = block.rotation;
             for _ in 0..3 {
-                dir = dir.left();
-                if level.try_place(&block, block.position, dir) {
-                    level.remove(&block);
-                    block.rotate(dir);
-                    level.place(&block);
-                    transform.rotation = Quat::from_rotation_y(dir.as_radians());
-                    commands.spawn(AudioBundle {
-                        source: asset_server.load("sounds/clank.ogg"),
-                        settings: PlaybackSettings {
-                            mode: bevy::audio::PlaybackMode::Despawn,
-                            volume: bevy::audio::Volume::new_relative(0.5),
-                            speed: fastrand::f32() * 0.2 + 0.9,
-                            paused: false,
-                        },
-                    });
-                    return;
+                rotation = rotation.left();
+                for pos in [Dis2::ZERO, Dis2::X, Dis2::Z, Dis2::NEG_X, Dis2::NEG_Z].iter() {
+                    let pos = block.position + *pos;
+                    if !block.iter().any(|p| p == pos) {
+                        continue;
+                    }
+                    if level.try_place(&block, pos, rotation) {
+                        level.remove(&block);
+                        block.rotate(rotation).translate(pos);
+                        level.place(&block);
+                        transform.translation = level.to_vec3(pos);
+                        transform.rotation = Quat::from_rotation_y(rotation.as_radians());
+                        commands.spawn(AudioBundle {
+                            source: asset_server.load("sounds/clank.ogg"),
+                            settings: PlaybackSettings {
+                                mode: bevy::audio::PlaybackMode::Despawn,
+                                volume: bevy::audio::Volume::new_relative(0.5),
+                                speed: fastrand::f32() * 0.2 + 0.9,
+                                paused: false,
+                            },
+                        });
+                        return;
+                    }
                 }
             }
             commands.spawn(AudioBundle {
