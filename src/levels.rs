@@ -28,6 +28,7 @@ pub enum LevelState {
     Level00,
     Level01,
     Level02,
+    Level03,
     Test,
 }
 
@@ -38,6 +39,7 @@ impl LevelState {
             LevelState::Level00 => "levels/level_00.ron",
             LevelState::Level01 => "levels/level_01.ron",
             LevelState::Level02 => "levels/level_02.ron",
+            LevelState::Level03 => "levels/level_03.ron",
             LevelState::Test => "levels/test.ron",
         }
     }
@@ -47,7 +49,8 @@ impl LevelState {
             LevelState::MainMenu => LevelState::Level00,
             LevelState::Level00 => LevelState::Level01,
             LevelState::Level01 => LevelState::Level02,
-            LevelState::Level02 => LevelState::MainMenu,
+            LevelState::Level02 => LevelState::Level03,
+            LevelState::Level03 => LevelState::MainMenu,
             LevelState::Test => LevelState::MainMenu,
         }
     }
