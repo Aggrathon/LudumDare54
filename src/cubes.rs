@@ -6,15 +6,24 @@ use bevy::prelude::*;
 use bevy_easings::*;
 
 use crate::levels::LevelEntity;
+use crate::ui::ShowVictory;
+use crate::AppState;
 
 pub struct CubePlugin;
 
 impl Plugin for CubePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, route_cubes)
-            .add_systems(Update, (process_cubes, cube_spawner));
+        app.add_event::<CubeRecieved>()
+            .add_systems(PreUpdate, route_cubes)
+            .add_systems(
+                Update,
+                (process_cubes, cube_spawner, check_connection).run_if(in_state(AppState::Level)),
+            );
     }
 }
+
+#[derive(Event)]
+struct CubeRecieved;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CubeColor {
@@ -139,12 +148,14 @@ fn process_cubes(
         ),
     >,
     mut processors: Query<&mut CubeProcessor>,
+    mut event: EventWriter<CubeRecieved>,
     mut cmds: Commands,
 ) {
     for (entity, parent, cube) in query.iter() {
         if let Ok(mut proc) = processors.get_mut(parent.get()) {
             if cube.0 == proc.color {
                 proc.count += 1;
+                event.send(CubeRecieved);
             } else {
                 // TODO error sound
             }
@@ -177,4 +188,40 @@ fn cube_spawner(
             spawner.next = time.elapsed_seconds() + spawner.delay;
         }
     }
+}
+
+fn check_connection(
+    event: EventReader<CubeRecieved>,
+    routers: Query<(Entity, &CubeRouter, &GlobalTransform)>,
+    spawners: Query<&CubeSpawner>,
+    processors: Query<(&CubeRouter, &GlobalTransform, &CubeProcessor)>,
+    mut victory: ResMut<ShowVictory>,
+) {
+    if event.is_empty() {
+        return;
+    }
+    for (_, _, processor) in processors.iter() {
+        if processor.count == 0 {
+            return;
+        }
+    }
+    for (router, global, processor) in processors.iter() {
+        let mut pos = global.transform_point(router.0[0]);
+        'outer: loop {
+            for (rent, router, rtrans) in routers.iter() {
+                let pos2 = rtrans.transform_point(*router.0.last().unwrap());
+                if pos.distance_squared(pos2) < 0.1 {
+                    if let Ok(spawner) = spawners.get(rent) {
+                        if spawner.color == processor.color {
+                            break 'outer;
+                        }
+                    }
+                    pos = rtrans.transform_point(router.0[0]);
+                    continue 'outer;
+                }
+            }
+            return;
+        }
+    }
+    victory.show();
 }
