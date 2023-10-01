@@ -150,6 +150,7 @@ fn process_cubes(
     mut processors: Query<&mut CubeProcessor>,
     mut event: EventWriter<CubeRecieved>,
     mut cmds: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     for (entity, parent, cube) in query.iter() {
         if let Ok(mut proc) = processors.get_mut(parent.get()) {
@@ -157,7 +158,15 @@ fn process_cubes(
                 proc.count += 1;
                 event.send(CubeRecieved);
             } else {
-                // TODO error sound
+                cmds.spawn(AudioBundle {
+                    source: asset_server.load("sounds/boop.ogg"),
+                    settings: PlaybackSettings {
+                        mode: bevy::audio::PlaybackMode::Despawn,
+                        volume: bevy::audio::Volume::new_relative(0.5),
+                        speed: fastrand::f32() * 0.3 + 0.8,
+                        paused: false,
+                    },
+                });
             }
             cmds.entity(entity).despawn_recursive();
         } else {

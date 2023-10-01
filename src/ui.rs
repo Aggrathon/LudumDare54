@@ -51,11 +51,22 @@ const PANEL_COLOR: Color = Color::rgba(1.0, 1.0, 1.0, 0.5);
 
 fn button_interaction(
     mut interaction_query: Query<(&Interaction, &mut BackgroundColor), Changed<Interaction>>,
+    mut cmds: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
+                cmds.spawn(AudioBundle {
+                    source: asset_server.load("sounds/pling.ogg"),
+                    settings: PlaybackSettings {
+                        mode: bevy::audio::PlaybackMode::Despawn,
+                        volume: bevy::audio::Volume::new_relative(0.5),
+                        speed: fastrand::f32() * 0.2 + 0.9,
+                        paused: false,
+                    },
+                });
             }
             Interaction::Hovered => {
                 *color = HOVERED_BUTTON.into();
@@ -112,6 +123,15 @@ fn show_victory(
             &mut cmds,
             &asset_server,
         );
+        cmds.spawn(AudioBundle {
+            source: asset_server.load("sounds/fanfare.ogg"),
+            settings: PlaybackSettings {
+                mode: bevy::audio::PlaybackMode::Despawn,
+                volume: bevy::audio::Volume::new_relative(0.5),
+                speed: 1.0,
+                paused: false,
+            },
+        });
         victory.showing = true;
     }
 }

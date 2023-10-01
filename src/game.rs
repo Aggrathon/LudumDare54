@@ -368,6 +368,8 @@ fn on_drag(
     mut block_query: Query<(&mut Transform, &mut Block), With<Draggable>>,
     camera: Query<(&Camera, &GlobalTransform)>,
     mut level: ResMut<Level>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     if event.button != PointerButton::Primary {
         return;
@@ -400,7 +402,15 @@ fn on_drag(
                             block.translate(dis);
                             level.place(&block);
                             transform.translation = level.to_vec3(dis);
-                            // TODO place sound
+                            commands.spawn(AudioBundle {
+                                source: asset_server.load("sounds/click.ogg"),
+                                settings: PlaybackSettings {
+                                    mode: bevy::audio::PlaybackMode::Despawn,
+                                    volume: bevy::audio::Volume::new_relative(0.5),
+                                    speed: fastrand::f32() * 0.3 + 0.75,
+                                    paused: false,
+                                },
+                            });
                         }
                     }
                 }
@@ -414,6 +424,8 @@ fn on_click(
     root_query: Query<&Draggable>,
     mut block_query: Query<(&mut Transform, &mut Block), With<Draggable>>,
     mut level: ResMut<Level>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     if event.button != PointerButton::Secondary {
         return;
@@ -428,11 +440,27 @@ fn on_click(
                     block.rotate(dir);
                     level.place(&block);
                     transform.rotation = Quat::from_rotation_y(dir.as_radians());
-                    // TODO place sound
+                    commands.spawn(AudioBundle {
+                        source: asset_server.load("sounds/clank.ogg"),
+                        settings: PlaybackSettings {
+                            mode: bevy::audio::PlaybackMode::Despawn,
+                            volume: bevy::audio::Volume::new_relative(0.5),
+                            speed: fastrand::f32() * 0.2 + 0.9,
+                            paused: false,
+                        },
+                    });
                     return;
                 }
             }
-            // TODO: Error sound
+            commands.spawn(AudioBundle {
+                source: asset_server.load("sounds/boop.ogg"),
+                settings: PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Despawn,
+                    volume: bevy::audio::Volume::new_relative(0.5),
+                    speed: fastrand::f32() * 0.2 + 0.9,
+                    paused: false,
+                },
+            });
         }
     }
 }
