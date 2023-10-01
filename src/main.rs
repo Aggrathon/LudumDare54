@@ -1,5 +1,6 @@
 use std::f32::consts::*;
 
+use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 use bevy_easings::EasingsPlugin;
 
@@ -55,6 +56,7 @@ fn setup(
             shadows_enabled: true,
             ..default()
         },
+        cascade_shadow_config: CascadeShadowConfigBuilder::default().build(),
         ..default()
     });
     commands.insert_resource(LoadLevel(asset_server.load("levels/test.ron")));

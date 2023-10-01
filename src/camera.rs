@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 use std::time::Duration;
 
+use bevy::pbr::{DirectionalLightShadowMap, ScreenSpaceAmbientOcclusionBundle};
 use bevy::prelude::*;
 use bevy_easings::*;
 use bevy_mod_picking::prelude::*;
@@ -10,6 +11,8 @@ pub struct CameraMovePlugin;
 impl Plugin for CameraMovePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup)
+            .insert_resource(DirectionalLightShadowMap { size: 4096 })
+            .insert_resource(ClearColor(Color::rgb(0.4, 0.7, 0.7)))
             // .add_systems(Update, animate_camera_direction)
             .add_systems(PreUpdate, camera_rot)
             .add_systems(PostUpdate, (camera_move, camera_unobstruct));
@@ -37,6 +40,7 @@ fn setup(mut commands: Commands) {
             CameraDolly,
             TransformBundle::from_transform(Transform::from_rotation(rot)),
         ))
+        .insert(ScreenSpaceAmbientOcclusionBundle::default())
         .with_children(|p| {
             p.spawn((CameraArm, TransformBundle { ..default() }))
                 .with_children(|p| {
@@ -44,7 +48,7 @@ fn setup(mut commands: Commands) {
                         Camera3dBundle {
                             transform: Transform::from_xyz(10.0, 12.0, 0.0)
                                 .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-                            ..default()
+                            ..Default::default()
                         },
                         RaycastPickCamera::default(),
                     ));
