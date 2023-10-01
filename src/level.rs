@@ -52,6 +52,10 @@ impl Dis2 {
             Rotation::D270 => Self::new(self.z, -self.x),
         }
     }
+
+    pub fn distance(&self, other: Dis2) -> isize {
+        (self.x - other.x).abs() + (self.z - other.z).abs()
+    }
 }
 
 impl From<(isize, isize)> for Dis2 {
@@ -371,13 +375,28 @@ fn on_drag(
             {
                 if let Some(dist) = ray.intersect_plane(transform.translation, Vec3::Y) {
                     let pos = ray.get_point(dist);
-                    let dis = level.to_discrete(pos);
-                    if (dis != block.position) && level.try_place(&block, dis, block.rotation) {
-                        level.remove(&block);
-                        block.translate(dis);
-                        level.place(&block);
-                        transform.translation = level.to_vec3(dis);
-                        // TODO place sound
+                    let mut dis = level.to_discrete(pos);
+                    let dist = dis.distance(block.position);
+                    if dist > 0 {
+                        if dist > 1 {
+                            let mut dx = (dis.x - block.position.x).signum();
+                            let mut dz = (dis.z - block.position.z).signum();
+                            if dx != 0 && dz != 0 {
+                                if fastrand::bool() {
+                                    dx = 0;
+                                } else {
+                                    dz = 0;
+                                }
+                            }
+                            dis = block.position + Dis2::new(dx, dz);
+                        }
+                        if level.try_place(&block, dis, block.rotation) {
+                            level.remove(&block);
+                            block.translate(dis);
+                            level.place(&block);
+                            transform.translation = level.to_vec3(dis);
+                            // TODO place sound
+                        }
                     }
                 }
             }

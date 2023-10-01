@@ -2192,6 +2192,7 @@ dependencies = [
  "bevy_common_assets",
  "bevy_easings",
  "bevy_mod_picking",
+ "fastrand 2.0.1",
  "serde",
 ]
 

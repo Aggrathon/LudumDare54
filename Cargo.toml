@@ -11,3 +11,4 @@ bevy = "0.11.3"
 bevy_common_assets = { version = "0.7.0", features = ["ron"] }
 bevy_easings = "0.11.1"
 serde = "1.0.188"
+fastrand = "2.0.1"

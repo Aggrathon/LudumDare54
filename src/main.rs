@@ -32,7 +32,6 @@ fn main() {
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, animate_light_direction)
-        // .add_systems(Update, make_pickable)
         .run();
 }
 
