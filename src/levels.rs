@@ -4,7 +4,7 @@ use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 
 use crate::load::LoadLevel;
-use crate::ui::ShowDialog;
+use crate::ui::{ShowDialog, ShowVictory};
 use crate::AppState;
 
 pub struct LevelManagerPlugin;
@@ -27,6 +27,7 @@ pub enum LevelState {
     MainMenu,
     Level00,
     Level01,
+    Level02,
     Test,
 }
 
@@ -36,6 +37,7 @@ impl LevelState {
             LevelState::MainMenu => "levels/main_menu.ron",
             LevelState::Level00 => "levels/level_00.ron",
             LevelState::Level01 => "levels/level_01.ron",
+            LevelState::Level02 => "levels/level_02.ron",
             LevelState::Test => "levels/test.ron",
         }
     }
@@ -44,7 +46,8 @@ impl LevelState {
         match self {
             LevelState::MainMenu => LevelState::Level00,
             LevelState::Level00 => LevelState::Level01,
-            LevelState::Level01 => LevelState::MainMenu,
+            LevelState::Level01 => LevelState::Level02,
+            LevelState::Level02 => LevelState::MainMenu,
             LevelState::Test => LevelState::MainMenu,
         }
     }
@@ -85,13 +88,14 @@ fn load_level(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut dialog: EventWriter<ShowDialog>,
+    mut victory: ResMut<ShowVictory>,
 ) {
     commands.insert_resource(LoadLevel(asset_server.load(level.get_path())));
     match **level {
+        LevelState::MainMenu => victory.disable(),
         LevelState::Level00 => {
             dialog.send(ShowDialog("Use WASD/arrows + QE to look around.\nDrag conveyor belts with your mouse.\nRight click to rotate them (if there is enough space).".to_string()));
         }
-        LevelState::Test => {}
         _ => {}
     };
 }

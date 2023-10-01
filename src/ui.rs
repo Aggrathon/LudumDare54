@@ -35,6 +35,9 @@ impl ShowVictory {
     pub fn show(&mut self) {
         self.victory = true;
     }
+    pub fn disable(&mut self) {
+        self.showing = true;
+    }
 }
 
 #[derive(Component)]
