@@ -1,0 +1,29 @@
+(
+    layout: [
+        "######N##########U####",
+        "#__  7__ LLLL     ___#",
+        "#_1      LLLL       6#",
+        "u_       __ __3      O",
+        "#2___8   04     ___8 #",
+        "########__    ########",
+        "EEEEEEE#_   _ #EEEEEEE",
+        "EEEEEEE#5____ #EEEEEEE",
+        "EEEEEEEn 9 _  #EEEEEEE",
+        "EEEEEEE# _ _  #EEEEEEE",
+        "EEEEEEE# 1 _  #EEEEEEE",
+        "EEEEEEE# L 2  #EEEEEEE",
+        "EEEEEEE#####I##EEEEEEE",
+    ],
+    objects: [
+        Belt("fffl"),
+        Belt("ff"),
+        Belt("ffff"),
+        Belt("lfl"),
+        Belt("fffrff"),
+        Belt("ffrf"),
+        Belt("flff"),
+        Belt("rff"),
+        Belt("lfff"),
+        Belt("frfflf"),
+    ]
+)
