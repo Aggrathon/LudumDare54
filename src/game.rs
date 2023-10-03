@@ -52,9 +52,9 @@ impl Dis2 {
     pub fn rotated(&self, rotation: Rotation) -> Self {
         match rotation {
             Rotation::D0 => Self::new(self.x, self.z),
-            Rotation::D90 => Self::new(-self.z, self.x),
+            Rotation::D90 => Self::new(self.z, -self.x),
             Rotation::D180 => Self::new(-self.x, -self.z),
-            Rotation::D270 => Self::new(self.z, -self.x),
+            Rotation::D270 => Self::new(-self.z, self.x),
         }
     }
 
@@ -261,9 +261,9 @@ impl Rotation {
     pub fn as_radians(&self) -> f32 {
         match self {
             Rotation::D0 => 0.0,
-            Rotation::D90 => -PI * 0.5,
+            Rotation::D90 => PI * 0.5,
             Rotation::D180 => PI,
-            Rotation::D270 => PI * 0.5,
+            Rotation::D270 => -PI * 0.5,
         }
     }
 

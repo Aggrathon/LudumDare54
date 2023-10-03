@@ -29,7 +29,7 @@ impl BeltBuilder {
         self.scenes.push(SceneBundle {
             scene: asset_server.load("models/belt.glb#Scene0"),
             transform: Transform::from_translation(self.pos)
-                .with_rotation(Quat::from_rotation_y(-self.dir.as_radians())),
+                .with_rotation(Quat::from_rotation_y(self.dir.as_radians())),
             ..Default::default()
         });
         self.route.push(self.pos + self.dir.as_vec3() * 0.5);
