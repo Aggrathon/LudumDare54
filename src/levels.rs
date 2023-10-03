@@ -65,7 +65,12 @@ fn spawn_sun(mut commands: Commands) {
                 shadows_enabled: true,
                 ..default()
             },
-            cascade_shadow_config: CascadeShadowConfigBuilder::default().build(),
+            cascade_shadow_config: CascadeShadowConfigBuilder {
+                maximum_distance: 30.0,
+                minimum_distance: 4.0,
+                ..default()
+            }
+            .build(),
             ..default()
         },
         LevelEntity,

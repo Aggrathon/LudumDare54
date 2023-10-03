@@ -58,7 +58,7 @@ fn spawn_camera(query: Query<Entity, With<CameraDolly>>, mut commands: Commands)
                 .with_children(|p| {
                     p.spawn((
                         Camera3dBundle {
-                            transform: Transform::from_xyz(-10.0, 12.0, 0.0)
+                            transform: Transform::from_xyz(-9.0, 14.0, 0.0)
                                 .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
                             ..Default::default()
                         },
